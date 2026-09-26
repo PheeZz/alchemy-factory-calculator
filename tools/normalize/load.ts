@@ -26,6 +26,7 @@ export interface RawVec {
 }
 
 export interface RawItem {
+  ID: number;
   DisplayName: RawText;
   DisplayIcon: RawAsset | null;
   IngredientTags: string[];
@@ -36,6 +37,7 @@ export interface RawItem {
   HeatValue: number;
   NutrientValue: number;
   NutrientSpeed: number;
+  CauldronCost: number;
   IsLiquid: boolean;
   AllowPortalSupply: boolean;
 }

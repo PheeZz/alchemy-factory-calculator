@@ -1,10 +1,11 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import type { RawCount, RawItem, RawRecipe } from './load';
-import { normalizeRecipe, nurseryRecipe, type RecipeContext } from './recipes';
+import { normalizeRecipe, nurseryRecipe, paradoxRecipe, type RecipeContext } from './recipes';
 
 const none: RawCount = { IngredientName: 'None', Count: 0 };
-const item = (MaximumStack: number): RawItem => ({
+const item = (MaximumStack: number, CauldronCost = 1): RawItem => ({
+  ID: 1,
   DisplayName: { Key: 'k' },
   DisplayIcon: null,
   IngredientTags: [],
@@ -15,6 +16,7 @@ const item = (MaximumStack: number): RawItem => ({
   HeatValue: 0,
   NutrientValue: 0,
   NutrientSpeed: 0,
+  CauldronCost,
   IsLiquid: false,
   AllowPortalSupply: false,
 });
@@ -36,7 +38,9 @@ const row = (r: Partial<RawRecipe>): RawRecipe => ({
 
 // MaximumStack as in DT_Enemies (negative = fractional item with that many parts)
 const items: Record<string, RawItem> = {
-  Wood: item(-200),
+  Wood: item(-200, 0.8),
+  Limestone: item(-150, 3),
+  Mors: item(100, 600),
   WoodBoard: item(600),
   Jupiter: item(-300),
   Saturn: item(-100),
@@ -132,6 +136,7 @@ describe('normalizeRecipe — outputs and flags', () => {
       bHideInGame: true,
     }), ctx);
     expect(r.unlockedBy).toBeNull();
+    expect(r.hidden).toBe(true);
     expect(r.inputs).toEqual([{ item: 'Flax', qty: 11 }]);
   });
 });
@@ -146,5 +151,18 @@ describe('nurseryRecipe', () => {
     expect(r.inputs).toEqual([]);
     expect(r.outputs).toEqual([{ item: 'Gentian', qty: 80, chance: 1 }, { item: 'GentianNectar', qty: 80, chance: 1 }]);
     expect(r.nutrientPerBatch).toBe(960_000);
+  });
+});
+
+describe('paradoxRecipe (Paradox Crucible: any item → Oblivion Essence)', () => {
+  it('time = 1500 / whole-item CauldronCost, matching starfi5h in-game timings', () => {
+    const limestone = paradoxRecipe('Limestone', items, ['ParadoxCrucible'], 'ParadoxCrucible');
+    expect(limestone.inputs).toEqual([{ item: 'Limestone', qty: 1 }]);
+    expect(limestone.outputs).toEqual([{ item: 'Mors', qty: 1, chance: 1 }]);
+    expect(limestone.timeSec).toBeCloseTo(3.333, 3);
+    expect(limestone).toMatchObject({ alternate: false, special: null, hidden: false });
+    const logs = paradoxRecipe('Wood', items, ['ParadoxCrucible'], 'ParadoxCrucible');
+    expect(logs.timeSec).toBeCloseTo(9.375, 6);
+    expect(logs.alternate).toBe(true);
   });
 });

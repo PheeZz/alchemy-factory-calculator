@@ -40,6 +40,8 @@ export function normalizeRecipe(id: string, row: RawRecipe, ctx: RecipeContext):
 
   const craftType = craftTypeOf(row);
   const buildings = ctx.buildingsFor(craftType);
+  const unlockedBy = row.bHideInGame ? null : ctx.unlockedBy(id, buildings, row);
+  const hidden = row.bHideInGame || unlockedBy === null;
   return {
     id,
     nameKey: ctx.items[row.ProductInfo.IngredientName]?.DisplayName.Key ?? id,
@@ -52,7 +54,8 @@ export function normalizeRecipe(id: string, row: RawRecipe, ctx: RecipeContext):
     nutrientPerBatch: null,
     alternate: row.bAlternate,
     special: SPECIAL_TYPES[craftType] ?? null,
-    unlockedBy: row.bHideInGame ? null : ctx.unlockedBy(id, buildings, row),
+    hidden,
+    unlockedBy,
     yieldSkill: YIELD_SKILL_TYPES.has(craftType),
   };
 }
@@ -77,12 +80,43 @@ export function nurseryRecipe(
     buildings,
     inputs: [],
     outputs,
-    // ponytail: real nursery time = nutrients / fertilizer NutrientSpeed (not in the contract); GrowthSeconds is the Seed Plot cycle
+    // real time = nutrientPerBatch / fertilizer nutrientSpeed / speed (solver); GrowthSeconds is only the Seed Plot cycle
     timeSec: seed.GrowthSeconds,
     heatPerSec: null,
     nutrientPerBatch: seed.GrowthNutrientValue * (seed.GrowthNum + seed.SideGrowthNum),
     alternate: false,
     special: null,
+    hidden: unlockedBy === null,
+    unlockedBy,
+    yieldSkill: false,
+  };
+}
+
+/**
+ * The Paradox Crucible (ParadoxFacilityComponent, C++) turns any single item into Oblivion
+ * Essence (Mors); no DT row describes it, only the Vitae ↔ Mors special cases. Time per item =
+ * PARADOX_VALUE / whole-item CauldronCost: reproduces starfi5h's in-game paradoxTime for all 28
+ * items it lists (Limestone 3.333 s, Logs 9.375 s, Flax 750 s, Silver Coin 1.661 s).
+ */
+const PARADOX_VALUE = 1500;
+const PARADOX_OUTPUT = 'Mors';
+// ponytail: default Mors source = Limestone (starfi5h's first row; its value equals one Oblivion Essence); the rest are alternates
+const PARADOX_DEFAULT_INPUT = 'Limestone';
+
+export function paradoxRecipe(input: string, items: Record<string, RawItem>, buildings: string[], unlockedBy: string | null): Recipe {
+  const raw = items[input]!;
+  return {
+    id: `Paradox_${input}`,
+    nameKey: items[PARADOX_OUTPUT]?.DisplayName.Key ?? PARADOX_OUTPUT,
+    buildings,
+    inputs: [{ item: input, qty: 1 }],
+    outputs: [{ item: PARADOX_OUTPUT, qty: 1, chance: 1 }],
+    timeSec: PARADOX_VALUE / (raw.CauldronCost * fractionsOf(raw)),
+    heatPerSec: null,
+    nutrientPerBatch: null,
+    alternate: input !== PARADOX_DEFAULT_INPUT,
+    special: null,
+    hidden: unlockedBy === null,
     unlockedBy,
     yieldSkill: false,
   };

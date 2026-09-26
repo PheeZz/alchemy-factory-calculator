@@ -4,6 +4,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { GameData, GameLocale } from '../../src/shared/data/types';
+import { reachable } from './items';
 import { ROOT } from './load';
 import { COMMUNITY_FORMULAS } from './report';
 
@@ -43,6 +44,28 @@ describe('gamedata.json referential integrity', () => {
       const translated = [...used].filter((k) => locale[k] !== k).length;
       expect(translated / used.size).toBeGreaterThanOrEqual(0.98);
     }
+  });
+
+  it('hidden ⇔ not unlockable; fertilizers carry a nutrient speed', () => {
+    expect(Object.values(data.recipes).filter((r) => r.hidden !== (r.unlockedBy === null)).map((r) => r.id)).toEqual([]);
+    const fertilizers = Object.values(data.items).filter((i) => i.nutrientValue > 0);
+    expect(fertilizers.map((i) => [i.id, i.nutrientSpeed])).toEqual(
+      expect.arrayContaining([['BasicFertilizer', 12], ['AdvancedFertilizer', 144], ['GrowthPotion', 2160], ['Catalyst2', 6000], ['PanaceaElixir', 20000]]),
+    );
+    expect(fertilizers.every((i) => i.nutrientSpeed > 0)).toBe(true);
+  });
+
+  it('every non-raw item is derivable from raw items (no closed loops like Vitae ↔ Mors)', () => {
+    const can = reachable(data.items, Object.values(data.recipes));
+    expect(Object.keys(data.items).filter((id) => !can.has(id))).toEqual([]);
+  });
+
+  it('item and building display names are unique per locale', () => {
+    for (const locale of Object.values(locales))
+      for (const group of [Object.values(data.items), Object.values(data.buildings)]) {
+        const texts = group.map((x) => locale[x.nameKey]);
+        expect(texts.filter((t, i) => texts.indexOf(t) !== i)).toEqual([]);
+      }
   });
 
   it('every icon path points at a produced webp', () => {

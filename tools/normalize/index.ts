@@ -4,10 +4,10 @@ import { join } from 'node:path';
 import type { Building, GameData, Item, Recipe } from '../../src/shared/data/types';
 import { buildingRole, normalizeBuilding, type BuildingRole } from './buildings';
 import { iconJob, writeIcons, type IconJob } from './icons';
-import { markRaw, normalizeItem } from './items';
+import { markRaw, normalizeItem, reachable } from './items';
 import { loadRaw, ROOT, type RawText } from './load';
-import { buildLocales } from './locale';
-import { normalizeRecipe, nurseryRecipe } from './recipes';
+import { buildLocales, disambiguate } from './locale';
+import { normalizeRecipe, nurseryRecipe, paradoxRecipe } from './recipes';
 import { writeReport } from './report';
 import { latest, unlockIndex } from './unlocks';
 import { upgradeTracks } from './upgrades';
@@ -77,6 +77,20 @@ async function main() {
   }
   markRaw(items, recipes);
 
+  // Paradox Crucible: any item the factory can already reach melts into Mors, except inputs the
+  // DT rows special-case on this machine (Mors → Vitae, Vitae → Mors_Alt)
+  const loopLocked = Object.keys(items).filter((id) => !reachable(items, recipes).has(id)).sort();
+  const paradox = buildingsFor('Paradox');
+  const specialCased = new Set(recipes.filter((r) => r.buildings.includes(paradox[0]!)).flatMap((r) => r.inputs.map((s) => s.item)));
+  const paradoxInputs = [...reachable(items, recipes)]
+    .filter((id) => !specialCased.has(id) && !raw.items[id]!.IsLiquid && raw.items[id]!.CauldronCost > 0)
+    .sort();
+  const paradoxUnlock = unlocks.building(paradox[0]!) ?? null;
+  recipes.push(...paradoxInputs.map((id) => paradoxRecipe(id, raw.items, paradox, paradoxUnlock)));
+  markRaw(items, recipes);
+  const canReach = reachable(items, recipes);
+  const unreachable = Object.keys(items).filter((id) => !canReach.has(id)).sort();
+
   const buildings: Record<string, Building> = {};
   for (const id of usedBuildings) {
     const b = raw.buildings[id]!;
@@ -101,6 +115,15 @@ async function main() {
     ...Object.values(raw.improvements).map((i) => i.DisplayName).filter((t) => upgrades.some((u) => u.nameKey === t.Key)),
   ];
   const { locales, missing } = buildLocales(texts, raw, ['ru', 'en']);
+  // same display text on different items (Sand2…Sand7 "Refined Sand") → derived numbered keys
+  const renamed = new Map([
+    ...disambiguate(Object.values(items).map((i) => ({ id: i.id, nameKey: i.nameKey, order: raw.items[i.id]!.ID })), locales),
+    ...disambiguate(Object.values(buildings).map((b) => ({ id: b.id, nameKey: b.nameKey, order: raw.buildings[b.id]!.ID })), locales),
+  ]);
+  for (const i of Object.values(items)) i.nameKey = renamed.get(i.id) ?? i.nameKey;
+  for (const b of Object.values(buildings)) b.nameKey = renamed.get(b.id) ?? b.nameKey;
+  // a recipe is named after its main product
+  for (const r of recipes) r.nameKey = items[r.outputs[0]!.item]!.nameKey;
 
   const outDir = join(ROOT, 'public/data', BUILD.id);
   mkdirSync(outDir, { recursive: true });
@@ -112,7 +135,7 @@ async function main() {
   const bytes = statSync(gamedataPath).size;
   const referencedIcons = Object.keys(items).filter((id) => raw.items[id]!.DisplayIcon).length +
     [...usedBuildings].filter((id) => raw.buildings[id]!.DisplayIcon).length;
-  const unexplained = writeReport({ data, locales, missing, raw, bytes, dropped, icons: { produced: iconJobs.length, referenced: referencedIcons } });
+  const unexplained = writeReport({ data, locales, missing, raw, bytes, dropped, renamed, unreachable, loopLocked, icons: { produced: iconJobs.length, referenced: referencedIcons } });
   console.log(
     `gamedata.json ${(bytes / 1024).toFixed(1)} KB · items ${Object.keys(items).length} · recipes ${recipes.length} · buildings ${usedBuildings.size} · icons ${iconJobs.length}/${referencedIcons} · missing ru ${missing.ru!.length} en ${missing.en!.length}`,
   );

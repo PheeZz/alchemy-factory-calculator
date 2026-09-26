@@ -11,7 +11,7 @@ export interface Stack {
 }
 
 export interface OutputStack extends Stack {
-  /** 1 for the main product; qty already holds the expected amount (qty × chance). */
+  /** Share of batches yielding it (main product: 1 − total fail rate); qty is already the expected amount. */
   chance: number;
 }
 
@@ -27,6 +27,8 @@ export interface Item {
   heatValue: number;
   /** > 0 means the item is a fertilizer. */
   nutrientValue: number;
+  /** Fertilizer delivery rate, nutrients/s: nursery batch time = nutrientPerBatch / nutrientSpeed / speed. */
+  nutrientSpeed: number;
   liquid: boolean;
   maxStack: number;
   tags: string[];
@@ -52,6 +54,8 @@ export interface Recipe {
   nutrientPerBatch: number | null;
   alternate: boolean;
   special: RecipeSpecial | null;
+  /** Hidden or cut from the game (bHideInGame / never unlocked): never chosen automatically. */
+  hidden: boolean;
   unlockedBy: string | null;
   /** Output multiplied by the Alchemy Skill track (Extractor/Alembic family). */
   yieldSkill: boolean;

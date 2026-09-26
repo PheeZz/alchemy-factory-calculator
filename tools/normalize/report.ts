@@ -64,7 +64,7 @@ const EXPLAINED: Record<string, Record<string, [DiffClass, string]>> = {
     'Steam Boiler (High)': ['code', 'Steam Boiler output is C++ (SteamBoilerComponent has no data); no DT row, not generated'],
     'Refined Sand': ['game', 'collapsed chain, see Sand8'],
     MoonlitSoap: ['game', 'DT CraftType Blend → Blender (faultyd3v row identical); starfi5h/joejoesgit put it on the Advanced Blender'],
-    Mors_Alt: ['code', 'DT row Vitae → Mors (5 s). starfi5h models the Paradox Crucible turning any item into Oblivion Essence with an item-dependent time (paradoxTime, C++), which has no DT rows'],
+    Mors_Alt: ['code', 'DT row Vitae → Mors (5 s); starfi5h\'s generic "Custom" row has no input — its concrete inputs are our Paradox_<item> rows'],
     Ruby_Alt: ['game', 'DT row uses Pure Gold Dust (GoldDust5), starfi5h Gold Dust (GoldDust3); special cauldron row anyway (output chosen by ingredient value in C++)'],
   },
   joejoesgit: {},
@@ -260,10 +260,13 @@ function classify(d: Diff, data: GameData, raw: Raw, dropped: string[] = []): Di
   const row = raw.recipes[d.recipe];
   const manual = EXPLAINED[d.source]?.[d.recipe];
   if (manual) return { ...d, cls: manual[0], note: manual[1] };
-  if (recipe && recipe.unlockedBy === null)
+  if (recipe?.hidden)
     return { ...d, cls: 'game', note: 'bHideInGame row (placeholder for a fail product or cut content), not obtainable in 1.0' };
   if (d.kind === 'oracle-only' && dropped.includes(d.recipe))
     return { ...d, cls: 'game', note: 'hidden row whose product item does not exist in DT_Enemies; dropped by the normalizer' };
+  // compared rows differ in input: oracles list only a few Paradox inputs (starfi5h computes the rest with the same formula)
+  if (d.recipe.startsWith('Paradox_') && !d.detail.includes(`(${d.recipe.slice('Paradox_'.length)})`))
+    return { ...d, cls: 'code', note: 'generated Paradox Crucible input (C++ "any item → Oblivion Essence"); the oracle has no row for this input' };
   if (d.source === 'faultyd3v' && involvesFractional(row, raw))
     return { ...d, cls: 'game', note: 'fractional item (MaximumStack < 0): Counts are 1/|MaximumStack| parts; starfi5h agrees with us' };
   if (d.kind === 'oracle-only') {
@@ -292,11 +295,17 @@ export interface ReportInput {
   raw: Raw;
   bytes: number;
   dropped: string[];
+  /** item/building id → derived nameKey for colliding display names. */
+  renamed: Map<string, string>;
+  /** Items the solver cannot derive from raw items. */
+  unreachable: string[];
+  /** Same sweep before the Paradox Crucible recipes were added. */
+  loopLocked: string[];
   icons: { produced: number; referenced: number };
 }
 
 /** Writes the report; returns the number of unexplained diffs plus normalizer bugs. */
-export function writeReport({ data, locales, missing, raw, bytes, dropped, icons }: ReportInput): number {
+export function writeReport({ data, locales, missing, raw, bytes, dropped, renamed, unreachable, loopLocked, icons }: ReportInput): number {
   const en = locales.en ?? {};
   const names = nameMaps(data, en);
   const diffs: Diff[] = [];
@@ -343,7 +352,7 @@ export function writeReport({ data, locales, missing, raw, bytes, dropped, icons
 
   const craftTypes = new Map<string, Set<string>>();
   for (const [id, r] of Object.entries(data.recipes)) {
-    const t = raw.recipes[id]?.CraftType.split('::')[1] ?? (r.nutrientPerBatch !== null ? 'PlantSeedConfig' : '?');
+    const t = raw.recipes[id]?.CraftType.split('::')[1] ?? (r.nutrientPerBatch !== null ? 'PlantSeedConfig' : 'Paradox (generated, C++)');
     craftTypes.set(t, new Set([...(craftTypes.get(t) ?? []), r.buildings.join(', ')]));
   }
 
@@ -369,7 +378,25 @@ export function writeReport({ data, locales, missing, raw, bytes, dropped, icons
     const count = (c: DiffClass) => ds.filter((d) => d.cls === c).length;
     return [s, String(ds.length), String(count('game')), String(count('code')), String(count('bug')), String(ds.filter((d) => !d.cls).length)];
   });
-  const hidden = Object.values(data.recipes).filter((r) => r.unlockedBy === null).map((r) => r.id);
+  const hidden = Object.values(data.recipes).filter((r) => r.hidden).map((r) => r.id);
+  const paradox = Object.values(data.recipes).filter((r) => r.id.startsWith('Paradox_'));
+  const paradoxSample = ['Limestone', 'Wood', 'Gentian', 'SilverCoin', 'Flax']
+    .map((i) => data.recipes[`Paradox_${i}`])
+    .filter((r): r is Recipe => r !== undefined)
+    .map((r) => `${r.inputs[0]!.item} ${fmt(r.timeSec)} s`);
+  const producers = (item: string) => Object.values(data.recipes).filter((r) => r.outputs.some((o) => o.item === item));
+  const unreachableRows = [
+    ['item', 'raw', 'buyPrice', 'producers'],
+    ...unreachable.map((id) => [id, String(data.items[id]!.raw), String(data.items[id]!.buyPrice), producers(id).map((r) => `${r.id}${r.hidden ? ' (hidden)' : r.special ? ` (${r.special})` : ''}`).join(', ') || '—']),
+  ];
+  const rawNoPrice = [
+    ['item', 'producers'],
+    ...Object.values(data.items)
+      .filter((i) => i.raw && i.buyPrice === null)
+      .map((i) => [i.id, producers(i.id).map((r) => `${r.id}${r.hidden ? ' (hidden)' : r.special ? ` (${r.special})` : ''}`).join(', ') || '— (no recipe in DT)'])
+      .sort(([a], [b]) => a!.localeCompare(b!)),
+  ];
+  const renamedRows = [['id', 'derived nameKey', 'ru', 'en'], ...[...renamed].map(([id, key]) => [id, key, locales.ru?.[key] ?? '', locales.en?.[key] ?? ''])];
   const special = Object.values(data.recipes).filter((r) => r.special !== null).map((r) => `${r.id} (${r.special})`);
 
   const md = `# 05 — Normalizer report (build ${data.build.id}, v${data.build.version})
@@ -437,21 +464,43 @@ ${bySource('starfi5h')}
 ### joejoesgit (pre-1.0)
 
 ${bySource('joejoesgit')}
+## Oblivion Essence (Mors) / Vitality Essence (Vitae) — Paradox Crucible
+
+The DT has only \`Vitae\` (1 Mors → 1 Vitae, 5 s) and \`Mors_Alt\` (1 Vitae → 1 Mors, 5 s), both on the Paradox Crucible — a closed loop, so 23 items downstream (Obsidian, Marble, Luna, Sol, Catalyst2…4, …) were infeasible. The real source is C++: \`ParadoxFacilityComponent\` (jmap: \`IngredientName\`, \`IngredientStack\`, \`IngredientTotalValue\`, \`ParadoxProcessTime\`, \`CachedProductName\`) accepts **any** item and outputs Oblivion Essence. Time per item = 1500 / (whole-item \`CauldronCost\`): computed from DT_Enemies it reproduces starfi5h's in-game \`paradoxTime\` for all 28 items it lists (e.g. ${paradoxSample.join(', ')}); the 1500 constant is C++.
+
+Modelled as ${paradox.length} generated recipes \`Paradox_<item>\` (1 item → 1 Mors, not special, unlocked with the Paradox Crucible) for every non-liquid item reachable from raw items, except Mors and Vitae whose DT rows take precedence. \`Paradox_Limestone\` is the default (non-alternate); the rest are alternates, so the optimizer can pick the cheapest input.
+
+## Reachability sweep
+
+Starting from raw items (the solver may always import them) and applying productive recipes (not special, not hidden), items still not derivable: **${unreachable.length}**. They are infeasible without an explicit import.
+
+${table(unreachableRows)}
+Without the Paradox Crucible rows the same sweep leaves ${loopLocked.length} items locked in the Vitae ↔ Mors loop: ${loopLocked.join(', ')}.
+
+Raw items without a buy price: their only producers are hidden / special (or none), so the solver gets them only by import. No non-raw item has only hidden / special producers — \`raw\` is defined as "no productive recipe".
+
+${table(rawNoPrice)}
+
+## Duplicate display names
+
+Items or buildings sharing a display text in ru or en get a **derived** nameKey \`<gameKey>#<id>\` whose text is the game string + a roman numeral in game-ID order (not a game string).
+
+${table(renamedRows)}
 ## Special / hidden recipes
 
 - \`special\` (kept, solver ignores): ${special.join(', ')}. Cauldron rows: output is chosen from ingredient value by C++ (see mechanics.json), heat is output-dependent. Plant rows = Seed Plot (manual, 1 seed consumed per cycle, not sped up).
-- \`unlockedBy: null\` (${hidden.length}): ${hidden.join(', ')} — all are \`bHideInGame\` rows. Every other recipe resolves to a skill: its own non-deprecated skill node, else the skill that unlocks its default building (1.0 deprecated the coin/ingot-alt nodes, they fall back to the machine), nursery rows take the later of machine and seed unlock.
+- \`hidden: true\` (= \`unlockedBy: null\`, ${hidden.length}): ${hidden.join(', ')} — all are \`bHideInGame\` rows. Every other recipe resolves to a skill: its own non-deprecated skill node, else the skill that unlocks its default building (1.0 deprecated the coin/ingot-alt nodes, they fall back to the machine), nursery rows take the later of machine and seed unlock.
 - Dropped (reference an item that does not exist in DT_Enemies): ${dropped.join(', ') || 'none'}.
 - No DT rows exist for Steam (Steam Boiler), Purchasing/Bank Portal or catalyst-modified Advanced Athanor outputs, so none were generated (\`steam\`, \`portal\`, \`catalyst\` specials are unused in this build). Raw buying is \`Item.buyPrice\` (\`AllowPortalSupply\` + \`StockCost\`).
 
 ## Open questions
 
-1. **Contract gap — nursery time.** Nursery/World Tree growth is fertilizer-bound: time per batch = nutrientPerBatch / (fertilizer \`NutrientSpeed\` × speed) (starfi5h, mechanics.json; Redcurrant 60→75/min per plot at Factory Efficiency 1). \`Item\` has no \`nutrientSpeed\` (DT_Enemies \`NutrientSpeed\`: Basic 12, Advanced 144, Growth Potion 2160, Fertile Catalyst 6000, Panacea 20 000), so \`Nursery_*\` recipes carry \`timeSec = GrowthSeconds\` as a placeholder (exact for Flax/Sage with Basic Fertilizer only). Proposal: add \`Item.nutrientSpeed\`; the solver then derives nursery time from the chosen fertilizer.
+1. Nursery time: growth is fertilizer-bound — batch time = nutrientPerBatch / \`Item.nutrientSpeed\` of the fertilizer / speed (DT_Enemies \`NutrientSpeed\`: Basic 12, Advanced 144, Growth Potion 2160, Fertile Catalyst 6000, Panacea 20 000). \`Nursery_*\` \`timeSec\` keeps \`GrowthSeconds\` (the Seed Plot cycle) only as a fallback.
 2. Nursery seeds are not consumed (starfi5h: seed is a build cost); contract has no per-recipe build item, so seeds do not appear in nursery inputs.
 3. Mini World Tree ↔ TreeStage2 and World Tree Nursery ↔ TreeStage3 pairing is inferred (C++), consistent with starfi5h.
 4. Advanced Athanor also runs Athanor recipes in-game (starfi5h "… Advanced Athanor" rows, 32 heat/s); not in DT, not added.
 5. \`heatSlotsRequired\` differs from starfi5h for Crucible, Kiln, Alembic, Athanor, Advanced Alembic (see table).
-6. Sand2…Sand7 share one display name ("Refined Sand" / «Очищенный песок»); UI may need to append the tier.
+6. Paradox Crucible output amount (1 Mors per input item regardless of stack) and the 1500 constant come from starfi5h's in-game measurements; not verifiable from tables.
 7. Thermal Extractor yield bonus (up to +200 % by build height) is C++; the data keeps it a plain Extract machine with 80 heat/s.
 `;
   writeFileSync(REPORT, md);

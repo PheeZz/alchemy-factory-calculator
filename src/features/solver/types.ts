@@ -82,7 +82,7 @@ export interface SolveResult {
   beltSpeed: number;
 }
 
-export type SolverErrorCode = 'unreachable' | 'infeasible' | 'unbounded' | 'timeout';
+export type SolverErrorCode = 'unreachable' | 'infeasible' | 'unbounded' | 'timeout' | 'invalidInput' | 'internal';
 
 export class SolverError extends Error {
   constructor(
