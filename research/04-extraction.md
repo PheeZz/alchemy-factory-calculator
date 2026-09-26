@@ -1,8 +1,8 @@
 # 04 — Извлечение данных из файлов игры (билд 25321648, v1.0.49xx)
 
 ## Пайплайн (воспроизводимый)
-1. Паки с Windows-ПК (`192.168.88.229`, SSH по ключу): `…\Steam\steamapps\common\Alchemy Factory\AlchemyFactory\Content\Paks\*` → `research/game-files/Paks/` (IoStore, **без шифрования**, Oodle).
-2. Рефлексия: игра запущена + загружен сейв → `C:\Users\pheezz\af-tools\jmap_dumper.exe --pid <Shipping pid> af.jmap` (jmap v0.2.0). Конверсия в `.usmap` падает (`TryFromIntError`) — не нужна, CUE4Parse читает `.jmap` напрямую. Файл: `research/game-files/mappings/af-<buildid>.jmap`.
+1. Паки с Windows-ПК с установленной игрой (копирование по SSH): `…\Steam\steamapps\common\Alchemy Factory\AlchemyFactory\Content\Paks\*` → `research/game-files/Paks/` (IoStore, **без шифрования**, Oodle).
+2. Рефлексия: игра запущена + загружен сейв → `jmap_dumper.exe --pid <Shipping pid> af.jmap` (jmap v0.2.0). Конверсия в `.usmap` падает (`TryFromIntError`) — не нужна, CUE4Parse читает `.jmap` напрямую. Файл: `research/game-files/mappings/af-<buildid>.jmap`.
    - Публичный `Mappings.usmap` (Nexus mod 5) собран до 1.0 → строки изменённых таблиц **молча пустые**. Не использовать.
 3. Экспорт: `tools/extractor` (CUE4Parse 1.2.2.202609, net10) в Docker `linux/amd64`:
    `docker run --rm --platform linux/amd64 -v "$PWD/tools/extractor:/src" -v "$PWD/research/game-files:/gf:ro" -v "$PWD/research/extracted:/out" -v af-nuget:/root/.nuget -w /src mcr.microsoft.com/dotnet/sdk:10.0 sh -c "<команды ниже>"`
