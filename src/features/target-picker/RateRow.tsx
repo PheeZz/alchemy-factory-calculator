@@ -30,7 +30,7 @@ export function RateRow({
   const t = useT();
   const name = options.find((o) => o.value === item)?.label ?? item;
   return (
-    <li className={cx('grid items-center gap-2', onToggleUnlimited ? 'grid-cols-[minmax(0,1fr)_5.25rem_auto_auto]' : 'grid-cols-[minmax(0,1fr)_6.5rem_auto]')}>
+    <li className={cx('grid items-center gap-2', onToggleUnlimited ? 'grid-cols-[minmax(0,1fr)_5.25rem_auto_auto]' : 'grid-cols-[minmax(0,1fr)_5.75rem_auto]')}>
       <SearchCombobox options={options} value={item} onChange={onItem} label={itemLabel} placeholder={t('combobox.placeholder')} />
       {unlimited ? (
         <span className="grid h-10 place-items-center rounded-xl border border-flow/30 bg-flow/5 text-xs text-flow">{t('supplies.unlimited')}</span>

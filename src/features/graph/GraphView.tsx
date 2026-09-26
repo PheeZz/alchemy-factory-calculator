@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Background,
   BackgroundVariant,
@@ -9,6 +9,7 @@ import {
   useNodesInitialized,
   useNodesState,
   useReactFlow,
+  useStore,
   type OnSelectionChangeFunc,
 } from '@xyflow/react';
 import type { GameData } from '@/shared/data/types';
@@ -19,7 +20,11 @@ import type { GraphNode } from './elements';
 import { ImportNode, SurplusNode, TargetNode } from './nodes/EndpointNode';
 import { RecipeNode } from './nodes/RecipeNode';
 import { useGraphLayout } from './useGraphLayout';
+import { chainFocus } from './focus';
 import { openingViewport } from './viewport';
+
+/** Below this zoom the running lights are sub-pixel and only cost paint time. */
+const FAR_ZOOM = 0.35;
 
 // Module-level so React Flow never sees new type maps (it would remount every node).
 const nodeTypes = { recipe: RecipeNode, import: ImportNode, target: TargetNode, surplus: SurplusNode };
@@ -41,7 +46,7 @@ interface GraphViewProps {
 
 function Graph({ data, result, selectedId, onSelectNode }: GraphViewProps) {
   const wrapper = useRef<HTMLDivElement>(null);
-  const graph = useGraphLayout(data, result, () => ({
+  const { graph, pending } = useGraphLayout(data, result, () => ({
     width: wrapper.current?.clientWidth || 1024,
     height: wrapper.current?.clientHeight || 600,
   }));
@@ -83,13 +88,28 @@ function Graph({ data, result, selectedId, onSelectNode }: GraphViewProps) {
   );
   const onPaneClick = useCallback(() => onSelectNode(null), [onSelectNode]);
 
+  const [hovered, setHovered] = useState<string | null>(null);
+  const focus = useMemo(() => chainFocus(graph?.edges ?? [], hovered), [graph, hovered]);
+  const shownNodes = useMemo(
+    () => (focus ? nodes.map((n) => ({ ...n, className: focus.nodes.has(n.id) ? undefined : 'is-dim' })) : nodes),
+    [nodes, focus],
+  );
+  const shownEdges = useMemo(
+    () => (focus && graph ? graph.edges.map((e) => ({ ...e, className: focus.edges.has(e.id) ? undefined : 'is-dim' })) : (graph?.edges ?? [])),
+    [graph, focus],
+  );
+  const far = useStore((s) => s.transform[2] < FAR_ZOOM);
+
   return (
     <GraphDataContext.Provider value={data}>
       <ReactFlow<GraphNode>
         ref={wrapper}
         nodesDraggable={false}
-        nodes={nodes}
-        edges={graph?.edges ?? []}
+        nodes={shownNodes}
+        edges={shownEdges}
+        className={far ? 'graph-far' : undefined}
+        onNodeMouseEnter={(_, n) => setHovered(n.id)}
+        onNodeMouseLeave={() => setHovered(null)}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         onNodesChange={onNodesChange}
@@ -103,6 +123,7 @@ function Graph({ data, result, selectedId, onSelectNode }: GraphViewProps) {
         maxZoom={1.75}
         colorMode="dark"
       >
+        {pending && <div className="shimmer z-10" aria-hidden="true" />}
         <Background variant={BackgroundVariant.Dots} gap={28} size={1.2} color="rgb(176 164 255 / 0.13)" />
         <Controls showInteractive={false} position="bottom-left" />
         <MiniMap

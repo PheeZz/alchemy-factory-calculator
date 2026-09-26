@@ -104,6 +104,8 @@ export function SearchCombobox({
         spellCheck={false}
         placeholder={open ? (selected?.label ?? placeholder) : placeholder}
         value={open ? query : (selected?.label ?? '')}
+        // An input cannot wrap; the full name stays reachable on hover.
+        title={selected?.label}
         onChange={(e) => {
           setQuery(e.target.value);
           setActive(0);
@@ -146,7 +148,9 @@ export function SearchCombobox({
             )}
           >
             <ItemIcon icon={o.icon} name={o.label} seed={o.value} size={22} decorative />
-            <span className="truncate">{o.label}</span>
+            <span className="line-clamp-2 leading-snug" title={o.label}>
+              {o.label}
+            </span>
           </li>
         ))}
       </ul>

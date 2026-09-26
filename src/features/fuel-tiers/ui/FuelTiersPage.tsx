@@ -4,6 +4,7 @@ import { useActiveFactory, useFactoryStore } from '@/features/factory/store';
 import { useNames, useT } from '@/shared/i18n';
 import { cx } from '@/shared/lib/cx';
 import { toast } from '@/shared/ui/Toast';
+import { burstFrom } from '@/shared/ui/burst';
 import { groupByTier, variantKey } from '../lib/tiers';
 import { applyVariant } from '../model/applyVariant';
 import { useFuelVariants } from '../model/useFuelVariants';
@@ -36,10 +37,14 @@ export function FuelTiersPage({ data }: { data: GameData }) {
         <TierControls data={data} factoryFuel={factoryFuel} />
 
         {state.status === 'loading' && (
-          <p role="status" className="flex items-center gap-2 text-sm text-muted">
-            <span className="size-2 animate-pulse rounded-full bg-flow" aria-hidden="true" />
-            {t('tiers.loading')}
-          </p>
+          <div role="status" className="flex flex-col gap-2">
+            <span className="sr-only">{t('tiers.loading')}</span>
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} aria-hidden="true" className="relative h-[72px] overflow-hidden rounded-xl border border-line bg-abyss/70">
+                <div className="shimmer" />
+              </div>
+            ))}
+          </div>
         )}
         {state.status === 'error' && (
           <p role="alert" className="text-sm text-[#ffc2c7]">
@@ -76,7 +81,8 @@ export function FuelTiersPage({ data }: { data: GameData }) {
                         variant={r.variant}
                         tier={r.tier}
                         metric={metric}
-                        onUse={() => {
+                        onUse={(button) => {
+                          burstFrom(button);
                           applyVariant(data, r.variant);
                           toast(t('tiers.used', { fuel: name(data.items[r.variant.fuel]?.nameKey ?? r.variant.fuel), factory: factory.name }));
                         }}

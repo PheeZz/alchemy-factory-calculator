@@ -56,7 +56,7 @@ export function CalculatorPage({ data }: { data: GameData }) {
 
   return (
     <>
-      <div className="flex min-h-0 flex-1 lg:grid lg:grid-cols-[340px_minmax(0,1fr)_auto] lg:gap-3 lg:p-3">
+      <div className="flex min-h-0 flex-1 lg:grid lg:grid-cols-[clamp(340px,28vw,420px)_minmax(0,1fr)_auto] lg:gap-3 lg:p-3">
         <aside aria-label={t('aside.controls')} className="hidden min-h-0 flex-col gap-3 overflow-y-auto pr-1 lg:flex">
           <FactoryList data={data} />
           {controls}
