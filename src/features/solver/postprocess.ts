@@ -67,6 +67,7 @@ export function postprocess(data: GameData, model: Model, v: LpValues, mult: Mul
     };
     if (m.fuel) node.fuel = { item: m.fuel.item, rate: clean(m.fuel.qty * x) };
     if (m.fertilizer) node.fertilizer = { item: m.fertilizer.item, rate: clean(m.fertilizer.qty * x) };
+    if (m.catalyst) node.catalyst = { item: m.catalyst.item, rate: clean(m.catalyst.qty * x) };
     nodes.push(node);
 
     heatPerSec += (x * m.heatPerBatch) / 60;

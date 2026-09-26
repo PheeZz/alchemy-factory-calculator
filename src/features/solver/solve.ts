@@ -3,6 +3,7 @@ import { getMultipliers } from '@/features/upgrades/multipliers';
 import { buildLp, readValues, shortItem, type LpGoal, type LpValues } from './build-lp';
 import { runLp, type LpRun } from './highs';
 import { buildModel, type Model } from './model';
+import { techClosure, techOwners } from './tech';
 import { postprocess } from './postprocess';
 import { SolverError, type FactoryPlan, type SolveResult, type UpgradeLevels } from './types';
 
@@ -55,8 +56,55 @@ async function optimize(model: Model): Promise<LpValues> {
 /** Pure: runs HiGHS in the current thread (tests, worker). */
 export async function solve(data: GameData, plan: FactoryPlan, levels: UpgradeLevels): Promise<SolveResult> {
   const mult = getMultipliers(data, levels);
-  const model = buildModel(data, plan, mult);
+  let model: Model;
+  try {
+    model = buildModel(data, plan, mult);
+  } catch (e) {
+    // Blocked by the tech tree: say what to learn, not just which item is missing.
+    if (e instanceof SolverError && e.code === 'unreachable' && plan.unlocked != null) {
+      const techs = await requiredTechFor(data, plan);
+      if (techs.length) throw new SolverError('unreachable', e.item, `${e.message} — learn: ${techs.join(', ')}`, techs);
+    }
+    throw e;
+  }
   const values: LpValues =
     model.items.length === 0 ? { x: [], imp: new Map(), sur: new Map(), out: 0 } : await optimize(model);
   return postprocess(data, model, values, mult);
+}
+
+const NO_UPGRADES: UpgradeLevels = { conveyor: 0, factorySpeed: 0, alchemySkill: 0, fuelEfficiency: 0, fertilizerEfficiency: 0 };
+
+/**
+ * Tech nodes to learn so the plan works as the planner would build it with everything open:
+ * the owners of the recipes, machines, heaters and bought raw items of that solution, plus their
+ * prerequisites, minus what `plan.unlocked` already covers. Stage, then id order.
+ * ponytail: minimal for the default recipe path, not across all alternatives (that is a set-cover search)
+ */
+export async function requiredTechFor(data: GameData, plan: FactoryPlan): Promise<string[]> {
+  if (!data.tech) return [];
+  const open = techClosure(data, plan.unlocked ?? []);
+  let res: SolveResult;
+  try {
+    res = await solve(data, { ...plan, unlocked: null }, NO_UPGRADES);
+  } catch (e) {
+    if (e instanceof SolverError && e.code !== 'internal') return [];
+    throw e;
+  }
+  const owners = techOwners(data);
+  const need = new Set<string>();
+  const require = (kind: 'recipes' | 'buildings' | 'items', id: string) => {
+    const nodes = owners[kind].get(id);
+    if (!nodes || nodes.some((n) => open.has(n.id))) return;
+    need.add([...nodes].sort((a, b) => a.stage - b.stage || (a.id < b.id ? -1 : 1))[0]!.id);
+  };
+  for (const n of res.nodes) {
+    require('recipes', n.recipe);
+    require('buildings', n.building);
+    if (n.heater) require('buildings', n.heater.building);
+  }
+  for (const s of res.totals.raw) require('items', s.item);
+  const stage = new Map(data.tech.map((n) => [n.id, n.stage]));
+  return [...techClosure(data, need)]
+    .filter((id) => !open.has(id))
+    .sort((a, b) => stage.get(a)! - stage.get(b)! || (a < b ? -1 : 1));
 }

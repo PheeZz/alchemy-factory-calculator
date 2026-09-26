@@ -1,7 +1,7 @@
 // `pnpm data`: research/extracted (CUE4Parse exports) → public/data/<build>, public/icons/<build>, report.
 import { mkdirSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { Building, GameData, Item, Recipe } from '../../src/shared/data/types';
+import type { Building, Catalyst, GameData, Item, Recipe } from '../../src/shared/data/types';
 import { buildingRole, normalizeBuilding, type BuildingRole } from './buildings';
 import { iconJob, writeIcons, type IconJob } from './icons';
 import { markRaw, normalizeItem, reachable } from './items';
@@ -9,6 +9,7 @@ import { loadRaw, ROOT, type RawText } from './load';
 import { buildLocales, disambiguate } from './locale';
 import { normalizeRecipe, nurseryRecipe, paradoxRecipe, steamBoilerRecipes } from './recipes';
 import { writeReport } from './report';
+import { techTree } from './tech';
 import { latest, unlockIndex } from './unlocks';
 import { upgradeTracks } from './upgrades';
 
@@ -16,6 +17,15 @@ const BUILD = { id: '25321648', version: '1.0.4962' };
 const MAX_BYTES = 500 * 1024;
 // ponytail: stage → building is C++ logic; matches starfi5h (Mini tree = leaves only, Nursery = leaves + core)
 const TREE_STAGE_BUILDING: Record<string, string> = { TreeStage2: 'MiniWorldTree', TreeStage3: 'WorldTreeNursery' };
+// Charges per catalyst item: int[4] table read by CraftFacilityComponent::GetCatalystCharges in the
+// game binary (research/07-catalysts-cauldron.md); the item ↔ effect pairing follows the item meshes
+// (SM_UnstableCatalyst, SM_FertileCatalyst, …).
+const CATALYSTS: Catalyst[] = [
+  { item: 'Catalyst1', charges: 180, effect: 'unstable' },
+  { item: 'Catalyst2', charges: 240, effect: 'fertile' },
+  { item: 'Catalyst3', charges: 1500, effect: 'resonant' },
+  { item: 'Catalyst4', charges: 99999, effect: 'eternal' },
+];
 
 /** Sorted keys + 6 significant digits keep the output byte-stable across runs. */
 function stableJson(value: unknown): string {
@@ -102,6 +112,16 @@ async function main() {
     buildings[id] = normalizeBuilding(id, b, roles[id]!, job?.publicPath ?? null);
   }
 
+  // Tech nodes also unlock logistics and décor: their names and icons come along for the tree view.
+  const techBuildings = Object.keys(raw.buildings).filter((id) => !raw.buildings[id]!.bHideInGame && unlocks.building(id));
+  const techIcons = new Map<string, string | null>();
+  for (const id of techBuildings) {
+    if (buildings[id]) continue;
+    const job = iconJob(BUILD.id, 'buildings', id, raw.buildings[id]!.DisplayIcon);
+    if (job) iconJobs.push(job);
+    techIcons.set(id, job?.publicPath ?? null);
+  }
+
   const upgrades = upgradeTracks(raw.upgradePoints, raw.improvements, raw.attributes);
   const data: GameData = {
     build: BUILD,
@@ -110,12 +130,14 @@ async function main() {
     buildings,
     upgrades,
     constants: { baseBeltSpeed: raw.attributes.ConveyerSpeed!.BaseValue },
+    catalysts: CATALYSTS.filter((c) => items[c.item]),
   };
 
   const texts: RawText[] = [
     ...Object.keys(items).map((id) => raw.items[id]!.DisplayName),
     ...Object.keys(buildings).map((id) => raw.buildings[id]!.DisplayName),
     ...Object.values(raw.improvements).map((i) => i.DisplayName).filter((t) => upgrades.some((u) => u.nameKey === t.Key)),
+    ...techBuildings.filter((id) => !buildings[id]).map((id) => raw.buildings[id]!.DisplayName),
   ];
   const { locales, missing } = buildLocales(texts, raw, ['ru', 'en']);
   // same display text on different items (Sand2…Sand7 "Refined Sand") → derived numbered keys
@@ -128,6 +150,27 @@ async function main() {
   // a recipe is named after its main product
   for (const r of recipes) r.nameKey = items[r.outputs[0]!.item]!.nameKey;
 
+  data.tech = techTree(raw.skills, {
+    unlocks,
+    recipes,
+    buildingIds: techBuildings,
+    nurserySeed: (id) => (id.startsWith('Nursery_') ? id.slice('Nursery_'.length) : undefined),
+    label: (s) => {
+      const name = s.UnlockItem.ConfigName;
+      const type = s.UnlockItem.ConfigType.split('::')[1];
+      if (type === 'CraftingRecipes') {
+        const product = raw.recipes[name]?.ProductInfo.IngredientName;
+        const item = product ? items[product] : undefined;
+        return { nameKey: item?.nameKey ?? null, icon: item?.icon ?? null };
+      }
+      if (type === 'ConstructOptions') {
+        const b = buildings[name];
+        return { nameKey: b?.nameKey ?? raw.buildings[name]?.DisplayName.Key ?? null, icon: b?.icon ?? techIcons.get(name) ?? null };
+      }
+      return { nameKey: null, icon: null };
+    },
+  });
+
   const outDir = join(ROOT, 'public/data', BUILD.id);
   mkdirSync(outDir, { recursive: true });
   const gamedataPath = join(outDir, 'gamedata.json');
@@ -137,7 +180,7 @@ async function main() {
 
   const bytes = statSync(gamedataPath).size;
   const referencedIcons = Object.keys(items).filter((id) => raw.items[id]!.DisplayIcon).length +
-    [...usedBuildings].filter((id) => raw.buildings[id]!.DisplayIcon).length;
+    [...usedBuildings, ...techIcons.keys()].filter((id) => raw.buildings[id]!.DisplayIcon).length;
   const unexplained = writeReport({ data, locales, missing, raw, bytes, dropped, renamed, unreachable, loopLocked, icons: { produced: iconJobs.length, referenced: referencedIcons } });
   console.log(
     `gamedata.json ${(bytes / 1024).toFixed(1)} KB · items ${Object.keys(items).length} · recipes ${recipes.length} · buildings ${usedBuildings.size} · icons ${iconJobs.length}/${referencedIcons} · missing ru ${missing.ru!.length} en ${missing.en!.length}`,

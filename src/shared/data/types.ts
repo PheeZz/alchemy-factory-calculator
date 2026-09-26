@@ -59,6 +59,44 @@ export interface Recipe {
   unlockedBy: string | null;
   /** Output multiplied by the Alchemy Skill track (Extractor/Alembic family). */
   yieldSkill: boolean;
+  /** Advanced Athanor rows that accept catalysts (see GameData.catalysts). */
+  catalyst?: RecipeCatalyst;
+}
+
+export interface RecipeCatalyst {
+  /** Catalyst charge consumed per batch (DT CatalystCost × FractionNum). */
+  cost: number;
+  /** Per-batch outputs under an Unstable catalyst (DT UnstableSequence instead of ProductSequence). */
+  unstableOutputs: OutputStack[];
+  /** Per-batch outputs under a Resonant catalyst: the main and every fail product at full count. */
+  resonantOutputs: OutputStack[];
+}
+
+export type CatalystEffect = 'unstable' | 'fertile' | 'resonant' | 'eternal';
+
+export interface Catalyst {
+  item: ItemId;
+  /** Charges one catalyst item holds (game binary). */
+  charges: number;
+  effect: CatalystEffect;
+}
+
+/** A skill-tree node (DT_SkillPoints). Ids equal Recipe.unlockedBy values. */
+export interface TechNode {
+  id: string;
+  /** Locale key of the unlocked entity; null for level nodes (use `stage`). */
+  nameKey: string | null;
+  icon: string | null;
+  /** Item cost (none in 1.0: nodes cost money and research points). */
+  cost: Stack[];
+  /** Copper. */
+  costMoney: number;
+  researchPoints: number;
+  /** Prerequisite node ids (deprecated nodes are skipped through). */
+  requires: string[];
+  unlocks: { recipes: RecipeId[]; buildings: BuildingId[]; items: ItemId[] };
+  /** Game tier 0..9 (Level1..Level10). */
+  stage: number;
 }
 
 export interface Cell {
@@ -117,6 +155,8 @@ export interface GameData {
   buildings: Record<BuildingId, Building>;
   upgrades: UpgradeTrack[];
   constants: { baseBeltSpeed: number };
+  tech?: TechNode[];
+  catalysts?: Catalyst[];
 }
 
 /** nameKey → display string, one file per language. */

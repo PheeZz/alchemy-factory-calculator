@@ -81,6 +81,18 @@ describe('rankFuelVariants (fixture)', () => {
     expect(fAlt.machinesPer1k).toBeCloseTo(20, 9);
   });
 
+  it('respects the tech tree: a locked path is not offered', async () => {
+    const locked = {
+      ...fuelsData,
+      tech: [{ id: 'Alt', nameKey: null, icon: null, cost: [], costMoney: 0, researchPoints: 0, requires: [], unlocks: { recipes: ['R_F_Alt'], buildings: [], items: [] }, stage: 1 }],
+    };
+    const none = await rankFuelVariants(locked, level0, { fertilizer: null, heating: 'self', unlocked: [] });
+    // F has a single maker left, so P's path no longer names one.
+    expect(none.map(key)).toEqual(['Coal:', 'P:R_P', 'F:R_F']);
+    const all = await rankFuelVariants(locked, level0, { fertilizer: null, heating: 'self', unlocked: ['Alt'] });
+    expect(all.map(key)).toContain('F:R_F_Alt');
+  });
+
   it('rankFuels keeps the best variant per fuel', async () => {
     const ranks = await rankFuels(fuelsData, level0);
     expect(ranks.map((r) => r.item)).toEqual(['Coal', 'F', 'P']);
