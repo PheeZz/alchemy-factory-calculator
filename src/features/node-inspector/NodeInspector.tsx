@@ -4,7 +4,7 @@ import { mainOutput, upgradeValue } from '@/entities/game';
 import { useActivePlan, useFactoryStore } from '@/features/factory/store';
 import { parseEndpoint } from '@/features/graph/elements';
 import { useNames, useT } from '@/shared/i18n';
-import { formatRate } from '@/shared/lib/format';
+import { formatNumber, formatRate } from '@/shared/lib/format';
 import { Button, IconButton } from '@/shared/ui/Button';
 import { GlowBadge } from '@/shared/ui/GlowBadge';
 import { Icon } from '@/shared/ui/Icon';
@@ -75,6 +75,7 @@ function RecipeInspector({
   const outName = outItem ? name(outItem.nameKey) : recipeId;
   const rates = node && recipeRates(recipe, node, upgradeValue(data, 'alchemySkill', levels.alchemySkill));
   const itemName = (id: string) => name(data.items[id]?.nameKey ?? id);
+  const buildingName = (id: string) => name(data.buildings[id]?.nameKey ?? id);
 
   return (
     <div className="flex flex-col gap-5">
@@ -86,12 +87,40 @@ function RecipeInspector({
         onClose={onClose}
       />
       {node ? <MachineStats node={node} /> : <p className="rounded-xl border border-line p-3 text-sm text-muted">{t('inspector.pending')}</p>}
-      {node && (node.fuel || node.fertilizer) && (
+      {node?.heaterWarning && (
+        <p role="alert" className="flex gap-2 rounded-xl border border-danger/50 bg-danger/10 p-2.5 text-sm text-[#ffc2c7]">
+          <Icon name="alert" size={16} className="mt-0.5 shrink-0 text-danger" />
+          {t('graph.heaterWarning', {
+            heater: buildingName(node.heaterWarning.building),
+            need: node.heaterWarning.slotsRequired,
+            has: node.heaterWarning.heatSlots,
+          })}
+        </p>
+      )}
+      {node && (node.fuel || node.fertilizer || node.heater) && (
         <ul className="flex flex-col gap-1.5 text-sm">
           {node.fuel && (
             <li className="flex items-center gap-2 text-ember">
               <Icon name="flame" size={15} />
               {t('graph.fuel', { item: itemName(node.fuel.item), rate: formatRate(t.lang, node.fuel.rate) })}
+            </li>
+          )}
+          {node.heater && (
+            <li className="flex items-center gap-2 text-muted">
+              <ItemIcon
+                icon={data.buildings[node.heater.building]?.icon ?? null}
+                name={buildingName(node.heater.building)}
+                seed={node.heater.building}
+                size={16}
+                decorative
+              />
+              {t('graph.heater', {
+                name: buildingName(node.heater.building),
+                count: formatNumber(t.lang, node.heater.count, 0),
+                exact: formatNumber(t.lang, node.heater.countExact, 2),
+                need: building?.heatSlotsRequired ?? 0,
+                slots: data.buildings[node.heater.building]?.heatSlots ?? 0,
+              })}
             </li>
           )}
           {node.fertilizer && (

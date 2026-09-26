@@ -37,7 +37,7 @@ export function translate(lang: Lang, key: DictKey, params?: Record<string, stri
 }
 
 /** Dict keys that carry CLDR plural forms as `<base>.one|few|many|other`. */
-type PluralBase = 'belts' | 'machines';
+type PluralBase = 'belts' | 'machines' | 'slots';
 
 export function translatePlural(lang: Lang, base: PluralBase, n: number, params?: Record<string, string | number>) {
   const form = new Intl.PluralRules(lang).select(n) as 'one' | 'few' | 'many' | 'other';
