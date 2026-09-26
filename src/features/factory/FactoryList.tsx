@@ -1,11 +1,17 @@
-import { useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import type { GameData } from '@/shared/data/types';
 import { useT } from '@/shared/i18n';
 import { cx } from '@/shared/lib/cx';
-import { IconButton } from '@/shared/ui/Button';
+import { Button, IconButton } from '@/shared/ui/Button';
 import { FIELD } from '@/shared/ui/NumberInput';
 import { Panel } from '@/shared/ui/Panel';
+import { GlowBadge } from '@/shared/ui/GlowBadge';
+import { Icon } from '@/shared/ui/Icon';
 import { toast } from '@/shared/ui/Toast';
-import { useFactoryStore, type Factory } from './store';
+import { Tooltip } from '@/shared/ui/Tooltip';
+import { downloadExport, importFile } from './io';
+import { sanitizePlan } from './stale';
+import { useActiveFactory, useFactoryStore, type Factory } from './store';
 
 function RenameField({ factory, onDone }: { factory: Factory; onDone: () => void }) {
   const t = useT();
@@ -31,7 +37,55 @@ function RenameField({ factory, onDone }: { factory: Factory; onDone: () => void
   );
 }
 
-export function FactoryList() {
+/** Ids from an older build or a hand-edited file: they are skipped in the solve, listed here. */
+function StaleIds({ data }: { data: GameData }) {
+  const t = useT();
+  const plan = useActiveFactory().plan;
+  const unknown = useMemo(() => sanitizePlan(data, plan).unknown, [data, plan]);
+  if (unknown.length === 0) return null;
+  return (
+    <Tooltip content={unknown.join(', ')}>
+      <button type="button" className="mt-2 rounded-full">
+        <GlowBadge tone="ember">
+          <Icon name="alert" size={12} />
+          {t('factory.staleIds', { n: unknown.length })}
+        </GlowBadge>
+      </button>
+    </Tooltip>
+  );
+}
+
+function BackupActions({ data }: { data: GameData }) {
+  const t = useT();
+  const input = useRef<HTMLInputElement>(null);
+  const onFile = async (file: File | undefined) => {
+    if (!file) return;
+    const res = importFile(await file.text());
+    toast(res.ok ? t('io.imported', { n: res.factories.length }) : t(`io.error.${res.error}`), res.ok ? 'info' : 'error');
+  };
+  return (
+    <div className="mt-3 flex gap-2 border-t border-line pt-3">
+      <Button size="sm" icon="download" onClick={() => downloadExport(data.build.id)}>
+        {t('io.export')}
+      </Button>
+      <Button size="sm" icon="upload" onClick={() => input.current?.click()}>
+        {t('io.import')}
+      </Button>
+      <input
+        ref={input}
+        type="file"
+        accept="application/json,.json"
+        hidden
+        onChange={(e) => {
+          void onFile(e.target.files?.[0]);
+          e.target.value = '';
+        }}
+      />
+    </div>
+  );
+}
+
+export function FactoryList({ data }: { data: GameData }) {
   const t = useT();
   const { factories, activeId, setActive, createFactory, duplicateFactory, deleteFactory } = useFactoryStore();
   const [editing, setEditing] = useState<string | null>(null);
@@ -84,6 +138,8 @@ export function FactoryList() {
           );
         })}
       </ul>
+      <StaleIds data={data} />
+      <BackupActions data={data} />
     </Panel>
   );
 }

@@ -10,7 +10,7 @@ export function MachineStats({ node }: { node: SolveNode }) {
     <div className="rounded-xl border border-line bg-void/40 p-3">
       <div className="flex items-baseline gap-3">
         <span className="font-display text-4xl leading-none text-ink">
-          <NumberFlip value={`${node.machines}×`} />
+          <NumberFlip value={`${formatNumber(t.lang, node.machines, 0)}×`} />
         </span>
         <span className="text-sm text-muted">{t('inspector.machines')}</span>
         <span className="num ml-auto text-sm text-muted">

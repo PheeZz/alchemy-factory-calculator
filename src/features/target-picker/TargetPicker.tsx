@@ -3,6 +3,7 @@ import type { GameData } from '@/shared/data/types';
 import { useActivePlan, useFactoryStore } from '@/features/factory/store';
 import { useT } from '@/shared/i18n';
 import { Button } from '@/shared/ui/Button';
+import { Icon } from '@/shared/ui/Icon';
 import { Panel } from '@/shared/ui/Panel';
 import { SearchCombobox, type ComboOption } from '@/shared/ui/SearchCombobox';
 import { Tabs } from '@/shared/ui/Tabs';
@@ -34,6 +35,30 @@ function AddRow({ options, label, onPick }: { options: ComboOption[]; label: str
           setOpen(false);
         }}
       />
+    </div>
+  );
+}
+
+/** Imports set elsewhere (inspector, error card) also feed a fromInput factory, so they are listed here too. */
+function ExtraImports({ options, imports }: { options: ComboOption[]; imports: string[] }) {
+  const t = useT();
+  if (imports.length === 0) return null;
+  const label = (id: string) => options.find((o) => o.value === id)?.label ?? id;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 text-sm">
+      <span className="text-muted">{t('supplies.alsoImported')}</span>
+      {imports.map((id) => (
+        <button
+          key={id}
+          type="button"
+          onClick={() => useFactoryStore.getState().toggleImport(id)}
+          aria-label={t('targets.remove', { name: label(id) })}
+          className="inline-flex items-center gap-1 rounded-full border border-flow/35 bg-flow/10 px-2 py-0.5 text-xs text-flow hover:border-flow/70"
+        >
+          {label(id)}
+          <Icon name="close" size={11} />
+        </button>
+      ))}
     </div>
   );
 }
@@ -90,11 +115,17 @@ export function TargetPicker({ data }: { data: GameData }) {
                     s.setSupply(item, supply.rate);
                   }}
                   onRate={(rate) => s.setSupply(supply.item, rate)}
-                  onRemove={() => s.removeSupply(supply.item)}
+                  onRemove={() => {
+                    s.removeSupply(supply.item);
+                    if (plan.imports.includes(supply.item)) s.toggleImport(supply.item);
+                  }}
+                  unlimited={plan.imports.includes(supply.item)}
+                  onToggleUnlimited={() => s.toggleImport(supply.item)}
                 />
               ))}
             </ul>
             <AddRow options={options} label={t('supplies.add')} onPick={(item) => s.setSupply(item, DEFAULT_RATE)} />
+            <ExtraImports options={options} imports={plan.imports.filter((i) => !plan.supplies.some((x) => x.item === i))} />
             <div className="mt-1 flex flex-col gap-1.5">
               <span className="text-sm text-muted" aria-hidden="true">
                 {t('supplies.maximize')}
