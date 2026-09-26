@@ -30,6 +30,10 @@ export interface FactoryPlan {
   /** Heater building for heated machines; absent/null → defaultHeater(data). */
   heater?: BuildingId | null;
   heaterFor?: Record<RecipeId, BuildingId>;
+  /** Learned tech nodes (prerequisites implied); absent/null → everything unlocked. */
+  unlocked?: string[] | null;
+  /** Catalyst item per catalyst-capable recipe (Recipe.catalyst). */
+  catalystFor?: Record<RecipeId, ItemId>;
 }
 
 export type UpgradeLevels = Record<UpgradeTrackId, number>;
@@ -53,6 +57,8 @@ export interface SolveNode {
   utilization: number;
   fuel?: Rate;
   fertilizer?: Rate;
+  /** Catalyst items consumed (also an input edge). */
+  catalyst?: Rate;
   portWarnings: PortWarning[];
   /** Heated nodes only: machines are never split across heaters. */
   heater?: { building: BuildingId; countExact: number; count: number };
@@ -96,6 +102,8 @@ export class SolverError extends Error {
     readonly code: SolverErrorCode,
     readonly item?: ItemId,
     message?: string,
+    /** unreachable under FactoryPlan.unlocked: the tech nodes to learn (prerequisites included). */
+    readonly requiredTech?: string[],
   ) {
     super(message ?? `${code}${item ? `: ${item}` : ''}`);
     this.name = 'SolverError';

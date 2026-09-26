@@ -1,6 +1,7 @@
 import type { BuildingId, GameData, Item, ItemId, Recipe, RecipeId, Stack } from '@/shared/data/types';
 import { getMultipliers } from '@/features/upgrades/multipliers';
 import { solve } from './solve';
+import { techGate, type TechGate } from './tech';
 import { SolverError, type UpgradeLevels } from './types';
 
 export interface FuelRank {
@@ -41,6 +42,8 @@ export interface FuelVariantOptions {
   /** 'self': the chain burns the fuel it makes; an item id: every heated machine burns that instead. */
   heating: 'self' | ItemId;
   maxVariantsPerFuel?: number;
+  /** Learned tech nodes; locked recipes are not offered as paths. Absent/null → all. */
+  unlocked?: string[] | null;
   /** Heater building for heated machines; absent/null → defaultHeater(data). */
   heater?: BuildingId | null;
 }
@@ -59,9 +62,9 @@ function fuelCandidates(data: GameData): Item[] {
 }
 
 /** Recipes making `item` as their main output; default (non-alternate) first, then by id. */
-function mainProducers(data: GameData, item: ItemId): Recipe[] {
+function mainProducers(data: GameData, item: ItemId, gate: TechGate): Recipe[] {
   return Object.values(data.recipes)
-    .filter((r) => !r.special && !r.hidden && r.outputs[0]?.item === item)
+    .filter((r) => !r.special && !r.hidden && gate.recipe(r.id) && r.outputs[0]?.item === item)
     .sort((a, b) => Number(a.alternate) - Number(b.alternate) || (a.id < b.id ? -1 : 1));
 }
 
@@ -90,13 +93,18 @@ function collapseParadox(data: GameData, recipes: Recipe[]): Recipe[] {
 }
 
 /** Fuel recipe × alternatives of its direct inputs, in odometer order so defaults come first. */
-function variantChoices(data: GameData, fuel: Item, max: number): { recipeFor: Record<ItemId, RecipeId>; path: RecipeId[] }[] {
+function variantChoices(
+  data: GameData,
+  fuel: Item,
+  max: number,
+  gate: TechGate,
+): { recipeFor: Record<ItemId, RecipeId>; path: RecipeId[] }[] {
   if (fuel.raw) return [{ recipeFor: {}, path: [] }];
   const out: { recipeFor: Record<ItemId, RecipeId>; path: RecipeId[] }[] = [];
-  for (const r of collapseParadox(data, mainProducers(data, fuel.id))) {
+  for (const r of collapseParadox(data, mainProducers(data, fuel.id, gate))) {
     const slots = [...new Set(r.inputs.map((s) => s.item))]
       .filter((i) => i !== fuel.id)
-      .map((i) => ({ item: i, options: collapseParadox(data, mainProducers(data, i)) }))
+      .map((i) => ({ item: i, options: collapseParadox(data, mainProducers(data, i, gate)) }))
       .filter((s) => s.options.length >= 2);
     const pick = slots.map(() => 0);
     for (;;) {
@@ -152,6 +160,7 @@ async function evaluate(
         fertilizerFor: {},
         optimize: null,
         heater: opts.heater ?? null,
+        unlocked: opts.unlocked ?? null,
       },
       levels,
     );
@@ -186,8 +195,9 @@ async function evaluate(
  */
 export async function rankFuelVariants(data: GameData, levels: UpgradeLevels, opts: FuelVariantOptions): Promise<FuelVariant[]> {
   const variants: FuelVariant[] = [];
+  const gate = techGate(data, opts.unlocked);
   for (const fuel of fuelCandidates(data)) {
-    for (const choice of variantChoices(data, fuel, opts.maxVariantsPerFuel ?? 8)) {
+    for (const choice of variantChoices(data, fuel, opts.maxVariantsPerFuel ?? 8, gate)) {
       const v = await evaluate(data, levels, fuel, choice, opts);
       if (v) variants.push(v);
     }

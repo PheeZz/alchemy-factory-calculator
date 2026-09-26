@@ -28,6 +28,7 @@ export function createWorkerHandler() {
         ok: false,
         code: err?.code ?? 'internal',
         item: err?.item,
+        requiredTech: err?.requiredTech,
         message: e instanceof Error ? e.message : String(e),
       };
     }

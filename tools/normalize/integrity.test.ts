@@ -31,6 +31,34 @@ describe('gamedata.json referential integrity', () => {
     expect(bad).toEqual([]);
   });
 
+  it('tech tree: acyclic, references resolve, recipes/unlockedBy point at live nodes', () => {
+    const tech = data.tech ?? [];
+    const ids = new Set(tech.map((n) => n.id));
+    const bad: string[] = [];
+    for (const n of tech) {
+      for (const p of n.requires) if (!ids.has(p)) bad.push(`${n.id}: requires ${p}`);
+      for (const r of n.unlocks.recipes) if (!data.recipes[r]) bad.push(`${n.id}: recipe ${r}`);
+      if (n.nameKey && !(n.nameKey in locales.en)) bad.push(`${n.id}: name ${n.nameKey}`);
+    }
+    for (const r of Object.values(data.recipes)) if (r.unlockedBy && !ids.has(r.unlockedBy)) bad.push(`${r.id}: unlockedBy ${r.unlockedBy}`);
+    // Every node is reachable from the roots through `requires` (no cycles, one tree).
+    const done = new Set<string>();
+    for (let grew = true; grew; ) {
+      grew = false;
+      for (const n of tech) if (!done.has(n.id) && n.requires.every((p) => done.has(p))) done.add(n.id), (grew = true);
+    }
+    expect(bad).toEqual([]);
+    expect(done.size).toBe(tech.length);
+    expect(tech.length).toBeGreaterThan(100);
+  });
+
+  it('catalysts: Advanced Athanor rows only, known catalyst items', () => {
+    for (const c of data.catalysts ?? []) expect(data.items[c.item]).toBeDefined();
+    const rows = Object.values(data.recipes).filter((r) => r.catalyst);
+    expect(rows.map((r) => r.id).sort()).toEqual(['GoldDust3', 'LapisLazuli', 'Obsidian', 'SilverPowder3']);
+    for (const r of rows) expect(r.buildings).toContain('AdvancedAthanor');
+  });
+
   it('every nameKey exists in both locales; ≥ 98 % real text for what non-special recipes use', () => {
     const keys = [...Object.values(data.items), ...Object.values(data.buildings), ...data.upgrades, ...Object.values(data.recipes)].map((x) => x.nameKey);
     for (const locale of Object.values(locales)) expect(keys.filter((k) => !(k in locale))).toEqual([]);

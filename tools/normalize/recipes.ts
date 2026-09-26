@@ -1,4 +1,4 @@
-import type { OutputStack, Recipe, RecipeSpecial, Stack } from '../../src/shared/data/types';
+import type { OutputStack, Recipe, RecipeCatalyst, RecipeSpecial, Stack } from '../../src/shared/data/types';
 import type { RawCount, RawItem, RawPlantSeed, RawRecipe } from './load';
 
 /**
@@ -10,6 +10,9 @@ export const fractionsOf = (item: RawItem | undefined) => (item && item.MaximumS
 // Output multiplied by the Alchemy Skill track (ExtractorSkill / AlembicSkill attributes).
 const YIELD_SKILL_TYPES = new Set(['Extract', 'Distill', 'AdDistill']);
 const SPECIAL_TYPES: Record<string, RecipeSpecial> = { Cauldron: 'cauldron', Plant: 'seedPlot' };
+// The game only charges catalysts in a facility of this craft type (CraftFacilityComponent checks
+// FactoryCraftType == AdAthanor), so Athanor rows' CatalystCost never applies to them.
+const CATALYST_TYPE = 'AdAthanor';
 
 export interface RecipeContext {
   items: Record<string, RawItem>;
@@ -40,6 +43,7 @@ export function normalizeRecipe(id: string, row: RawRecipe, ctx: RecipeContext):
 
   const craftType = craftTypeOf(row);
   const buildings = ctx.buildingsFor(craftType);
+  const catalyst = craftType === CATALYST_TYPE && (row.CatalystCost ?? 0) > 0 ? catalystOf(row, whole) : undefined;
   const unlockedBy = row.bHideInGame ? null : ctx.unlockedBy(id, buildings, row);
   const hidden = row.bHideInGame || unlockedBy === null;
   return {
@@ -57,7 +61,24 @@ export function normalizeRecipe(id: string, row: RawRecipe, ctx: RecipeContext):
     hidden,
     unlockedBy,
     yieldSkill: YIELD_SKILL_TYPES.has(craftType),
+    ...(catalyst ? { catalyst } : {}),
   };
+}
+
+/**
+ * Unstable: the product mix follows UnstableSequence (share of cycles per product index) instead
+ * of ProductSequence. Resonant: every product at full count each cycle (community model, starfi5h).
+ */
+function catalystOf(row: RawRecipe, whole: (c: RawCount, rate?: number) => number): RecipeCatalyst {
+  const products = [row.ProductInfo, row.FailProduct1, row.FailProduct2];
+  const side = isNone(row.SideProduct) ? [] : [{ item: row.SideProduct.IngredientName, qty: whole(row.SideProduct), chance: 1 }];
+  const seq = row.UnstableSequence ?? [];
+  const unstableOutputs: OutputStack[] = products.flatMap((p, k) => {
+    const share = seq.filter((i) => i === k).length / Math.max(seq.length, 1);
+    return share > 0 && !isNone(p) ? [{ item: p.IngredientName, qty: whole(p, share), chance: share }] : [];
+  });
+  const resonantOutputs = products.filter((p) => !isNone(p)).map((p) => ({ item: p.IngredientName, qty: whole(p), chance: 1 }));
+  return { cost: row.CatalystCost! * row.FractionNum, unstableOutputs: [...unstableOutputs, ...side], resonantOutputs: [...resonantOutputs, ...side] };
 }
 
 /**
