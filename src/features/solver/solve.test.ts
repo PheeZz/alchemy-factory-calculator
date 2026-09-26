@@ -6,6 +6,7 @@ import type { SolveResult } from './types';
 import { level0, levels, plan } from './fixtures/builders';
 import { chainData } from './fixtures/chain';
 import { heatData } from './fixtures/heat';
+import { edgeData } from './fixtures/edge';
 import { largeData, largeTarget } from './fixtures/large';
 
 function node(res: SolveResult, id: string) {
@@ -138,16 +139,25 @@ describe('solve', () => {
     expect(none.totals.heatPerSec).toBeCloseTo(10, 9);
   });
 
-  it('fertilizer consumption scales with fertilizer efficiency', async () => {
+  it('nursery: fertilizer sets growth time and consumption', async () => {
     const p = plan({ targets: [{ item: 'Flower', rate: 40 }], fertilizer: 'Compost' });
     const res = await solve(heatData, p, level0);
-    // x = 40/2 = 20; 24 nutrients per batch / 12 per Compost = 2 → 40 Compost/min.
+    // x = 40/2 = 20 batches; time = 24 nutrients / 4 per s = 6 s → 20·6/60 = 2 machines;
+    // consumption 24/12 = 2 Compost per batch → 40/min.
     const flower = node(res, 'R_Flower');
+    expect(flower.machinesExact).toBeCloseTo(2, 9);
     expect(flower.fertilizer).toEqual({ item: 'Compost', rate: expect.closeTo(40, 9) });
     expect(edge(res, 'import:Compost', 'R_Flower', 'Compost').perMin).toBeCloseTo(40, 9);
-    // Level 5 (×1.5): 20·24/18 = 26.667.
+    // Fertilizer efficiency 5 (×1.5) cuts consumption to 20·24/18 = 26.667 but not growth time.
     const eff = await solve(heatData, p, levels({ fertilizerEfficiency: 5 }));
     expect(node(eff, 'R_Flower').fertilizer?.rate).toBeCloseTo(80 / 3, 9);
+    expect(node(eff, 'R_Flower').machinesExact).toBeCloseTo(2, 9);
+    // Factory speed 2 (×1.5) speeds growth: 2/1.5 = 1.333 machines.
+    expect(node(await solve(heatData, p, levels({ factorySpeed: 2 })), 'R_Flower').machinesExact).toBeCloseTo(4 / 3, 9);
+    // No fertilizer: timeSec (10 s) placeholder, nothing consumed → 20·10/60 = 3.333.
+    const bare = node(await solve(heatData, { ...p, fertilizer: null }, level0), 'R_Flower');
+    expect(bare.machinesExact).toBeCloseTo(10 / 3, 9);
+    expect(bare.fertilizer).toBeUndefined();
   });
 
   it('seed loop: the crop returns its own seeds', async () => {
@@ -159,6 +169,8 @@ describe('solve', () => {
     expect(edge(res, 'R_Wheat', 'surplus:Seed', 'Seed').perMin).toBeCloseTo(5, 9);
     expect(res.totals.raw).toEqual([approx('Water', 20)]);
     expect(res.totals.byproducts).toEqual([approx('Seed', 5)]);
+    // Water is liquid: piped, no belts.
+    expect(edge(res, 'import:Water', 'R_Wheat', 'Water')).toMatchObject({ perMin: 20, belts: 0 });
   });
 
   it('import hides the subtree', async () => {
@@ -179,11 +191,40 @@ describe('solve', () => {
     expect(res.totals.byproducts).toEqual([approx('Slag', 25)]);
   });
 
-  it('fromInput without a binding supply is unbounded', async () => {
-    const p = plan({ mode: 'fromInput', supplies: [{ item: 'Sand', rate: 10 }], maximize: 'Gear' });
-    const err = await solveError(chainData, p);
-    expect(err.code).toBe('unbounded');
-    expect(err.item).toBe('Gear');
+  it('fromInput: a supplied intermediate adds to its own production', async () => {
+    const p = plan({ mode: 'fromInput', supplies: [{ item: 'Ore', rate: 60 }, { item: 'Ingot', rate: 1 }], maximize: 'Gear' });
+    const res = await solve(chainData, p, level0);
+    // Ore 60 → 30 Ingot, +1 supplied = 31 → Gear 31·2/3 = 20.667.
+    expect(edge(res, 'R_Gear', 'target:Gear', 'Gear').perMin).toBeCloseTo(62 / 3, 6);
+    expect(node(res, 'R_Ingot').batchesPerMin).toBeCloseTo(30, 6);
+    expect(edge(res, 'import:Ingot', 'R_Gear', 'Ingot').perMin).toBeCloseTo(1, 6);
+  });
+
+  it('fromInput: unsupplied raw items are not free', async () => {
+    // Only 3 Ingot/min: Ore is raw but not supplied → Gear = 3·2/3 = 2.
+    const only = plan({ mode: 'fromInput', supplies: [{ item: 'Ingot', rate: 3 }], maximize: 'Gear' });
+    const res = await solve(chainData, only, level0);
+    expect(edge(res, 'R_Gear', 'target:Gear', 'Gear').perMin).toBeCloseTo(2, 6);
+    expect(ids(res)).toEqual(['R_Gear']);
+    // Nothing supplied that leads to Gear: the error names what to supply.
+    const none = plan({ mode: 'fromInput', supplies: [{ item: 'Sand', rate: 10 }], maximize: 'Gear' });
+    expect(await solveError(chainData, none)).toMatchObject({ code: 'infeasible', item: 'Ore' });
+  });
+
+  it('fromInput: an unbounded import feeding the target is named', async () => {
+    const p = plan({ mode: 'fromInput', supplies: [{ item: 'Ore', rate: 10 }], imports: ['Ingot'], maximize: 'Gear' });
+    expect(await solveError(chainData, p)).toMatchObject({ code: 'unbounded', item: 'Ingot' });
+  });
+
+  it('rejects invalid rates', async () => {
+    for (const rate of [0, -1, Number.NaN, Number.POSITIVE_INFINITY, 1e-7, 1e13]) {
+      expect(await solveError(chainData, plan({ targets: [{ item: 'Gear', rate }] }))).toMatchObject({
+        code: 'invalidInput',
+        item: 'Gear',
+      });
+    }
+    const supply = plan({ mode: 'fromInput', supplies: [{ item: 'Ore', rate: Number.NaN }], maximize: 'Gear' });
+    expect(await solveError(chainData, supply)).toMatchObject({ code: 'invalidInput', item: 'Ore' });
   });
 
   it('unreachable item error names the missing input (special producers do not count)', async () => {
@@ -210,6 +251,18 @@ describe('solve', () => {
     };
     const err = await solveError(poor, plan({ targets: [{ item: 'Wheat', rate: 30 }] }));
     expect(err).toMatchObject({ code: 'infeasible', item: 'Seed' });
+  });
+
+  it('infeasibility hint points upstream, never at the target', async () => {
+    // X ← 2Y ← X loses half per round: the short item is Y, not the target X.
+    expect(await solveError(edgeData, plan({ targets: [{ item: 'X', rate: 10 }] }))).toMatchObject({
+      code: 'infeasible',
+      item: 'Y',
+    });
+    // T ← A ← B, with B ↔ C closed: the hint is inside the loop.
+    const err = await solveError(edgeData, plan({ targets: [{ item: 'T', rate: 10 }] }));
+    expect(err.code).toBe('infeasible');
+    expect(['B', 'C']).toContain(err.item);
   });
 
   it('upgrades scale machines, belts and the chosen building', async () => {
@@ -243,6 +296,27 @@ describe('solve', () => {
     // Conveyor level 1 → 75/min belt: no warning.
     const faster = await solve(chainData, p, levels({ conveyor: 1 }));
     expect(node(faster, 'R_Dust').portWarnings).toEqual([]);
+  });
+
+  it('port warning sums items sharing one port', async () => {
+    // 50 batches → 0.83 machine → 1; PA 50 + PB 50 = 100/min through the single input port.
+    const res = await solve(edgeData, plan({ targets: [{ item: 'Mixed', rate: 50 }] }), level0);
+    const w = node(res, 'R_Mixed').portWarnings;
+    expect(w).toHaveLength(1);
+    expect(w[0]!.perMachine).toBeCloseTo(100, 9);
+    expect(w[0]!.beltSpeed).toBe(60);
+    expect(['PA', 'PB']).toContain(w[0]!.item);
+    // Liquid output of 100·x never warns and rides no belts: 600/min of Juice from 6 batches.
+    const juice = await solve(edgeData, plan({ targets: [{ item: 'Juice', rate: 600 }] }), level0);
+    expect(node(juice, 'R_Juice').portWarnings).toEqual([]);
+    expect(edge(juice, 'R_Juice', 'target:Juice', 'Juice').belts).toBe(0);
+  });
+
+  it('hidden recipes are used only when picked explicitly', async () => {
+    const base = plan({ targets: [{ item: 'Q', rate: 10 }] });
+    expect(ids(await solve(edgeData, base, level0))).toEqual(['R_Q']);
+    expect(ids(await solve(edgeData, { ...base, optimize: 'raw' }, level0))).toEqual(['R_Q']);
+    expect(ids(await solve(edgeData, { ...base, recipeFor: { Q: 'R_AQ' } }, level0))).toEqual(['R_AQ']);
   });
 
   it('optimize picks the cheaper alternate by goal; hybrid follows manual choice', async () => {

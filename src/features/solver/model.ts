@@ -32,6 +32,8 @@ export interface Model {
   imports: Map<ItemId, ModelImport>;
   /** fromInput: the item whose output is maximized. */
   maximize: ItemId | null;
+  /** BFS distance from the roots; the infeasibility hint prefers the furthest-upstream item. */
+  depth: Map<ItemId, number>;
 }
 
 /** Tie-breakers, small against a weight of 1 per imported item yet above HiGHS' 1e-7 tolerances. */
@@ -50,7 +52,7 @@ function importCost(item: Item, goal: FactoryPlan['optimize']): number {
 function producerIndex(data: GameData): Map<ItemId, Recipe[]> {
   const index = new Map<ItemId, Recipe[]>();
   for (const r of Object.values(data.recipes)) {
-    if (r.special) continue;
+    if (r.special || r.hidden) continue;
     for (const o of r.outputs) {
       if (o.qty <= 0) continue;
       const list = index.get(o.item) ?? [];
@@ -65,21 +67,30 @@ function producerIndex(data: GameData): Map<ItemId, Recipe[]> {
   return index;
 }
 
-/** Plans come from URLs and storage: NaN/negative/infinite rates would corrupt the LP text. */
-const validRate = (rate: number) => (Number.isFinite(rate) && rate > 0 ? rate : 0);
+/** Plans come from URLs and storage; out-of-range rates would corrupt or destabilize the LP. */
+function checkRate(item: ItemId, rate: number): number {
+  if (!(rate >= 1e-6 && rate <= 1e12)) throw new SolverError('invalidInput', item, `rate out of range: ${rate}`);
+  return rate;
+}
 
 export function buildModel(data: GameData, plan: FactoryPlan, mult: Multipliers): Model {
   const goal = plan.optimize;
   const fromInput = plan.mode === 'fromInput';
+  const targets = new Map<ItemId, number>();
+  for (const t of plan.targets) targets.set(t.item, (targets.get(t.item) ?? 0) + checkRate(t.item, t.rate));
   const supplies = new Map<ItemId, number>();
-  if (fromInput) for (const s of plan.supplies) supplies.set(s.item, (supplies.get(s.item) ?? 0) + validRate(s.rate));
+  if (fromInput) for (const s of plan.supplies) supplies.set(s.item, (supplies.get(s.item) ?? 0) + checkRate(s.item, s.rate));
   const imported = new Set(plan.imports);
 
+  // Raw and imported items end the walk. Supplies do not: a supplied intermediate is still produced
+  // by its own chain, the supply only adds a bounded source.
+  const isLeaf = (id: ItemId) => data.items[id] !== undefined && (data.items[id].raw || imported.has(id));
   const importBound = (id: ItemId): number | null => {
     if (!data.items[id]) return null;
-    const supplied = supplies.get(id);
-    if (supplied !== undefined) return supplied;
-    return data.items[id].raw || imported.has(id) ? Infinity : null;
+    if (imported.has(id)) return Infinity;
+    // fromInput: sources are exactly the supplies and imports; unsupplied raw items get nothing.
+    if (fromInput) return supplies.get(id) ?? null;
+    return data.items[id].raw ? Infinity : null;
   };
 
   const validItem = (id: ItemId | null | undefined, key: 'heatValue' | 'nutrientValue') =>
@@ -95,14 +106,17 @@ export function buildModel(data: GameData, plan: FactoryPlan, mult: Multipliers)
     let mr: ModelRecipe | null = null;
     if (building) {
       const speed = building.speedMult * mult.speed;
-      const heatPerBatch = Math.max(0, r.timeSec * (r.heatPerSec ?? building.heatCost));
-      const fuel = heatPerBatch > 0 ? [plan.fuelFor[r.id], plan.fuel].map((id) => validItem(id, 'heatValue')).find(Boolean) : null;
       const fert =
         (r.nutrientPerBatch ?? 0) > 0
           ? [plan.fertilizerFor[r.id], plan.fertilizer].map((id) => validItem(id, 'nutrientValue')).find(Boolean)
           : null;
+      // Nursery growth is paced by the fertilizer's delivery rate; timeSec (GrowthSeconds) is the
+      // unfertilized fallback. Fertilizer efficiency changes consumption only, not growth.
+      const baseTime = fert && fert.nutrientSpeed > 0 ? r.nutrientPerBatch! / fert.nutrientSpeed : r.timeSec;
+      const heatPerBatch = Math.max(0, baseTime * (r.heatPerSec ?? building.heatCost));
+      const fuel = heatPerBatch > 0 ? [plan.fuelFor[r.id], plan.fuel].map((id) => validItem(id, 'heatValue')).find(Boolean) : null;
       const yieldMult = r.yieldSkill ? mult.alchemy : 1;
-      const machinesPerBatch = r.timeSec / (60 * speed);
+      const machinesPerBatch = baseTime / (60 * speed);
       mr = {
         recipe: r,
         building,
@@ -133,19 +147,19 @@ export function buildModel(data: GameData, plan: FactoryPlan, mult: Multipliers)
   const roots = [...plan.targets.map((t) => t.item), ...(fromInput && plan.maximize ? [plan.maximize] : [])];
   const alive = new Set<ModelRecipe>();
   const cause = new Map<ItemId, ItemId>();
-  const seen = new Set<ItemId>();
-  const queue = [...roots];
+  const depth = new Map<ItemId, number>();
+  const queue: [ItemId, number][] = roots.map((r) => [r, 0]);
   for (let i = 0; i < queue.length; i++) {
-    const item = queue[i]!;
-    if (seen.has(item)) continue;
-    seen.add(item);
-    if (importBound(item) !== null) continue;
+    const [item, d] = queue[i]!;
+    if (depth.has(item)) continue;
+    depth.set(item, d);
+    if (isLeaf(item)) continue;
     const list = candidates(item);
-    if (list.length === 0) cause.set(item, item);
+    if (list.length === 0 && importBound(item) === null) cause.set(item, item);
     for (const m of list) {
       if (alive.has(m)) continue;
       alive.add(m);
-      queue.push(...needs(m));
+      for (const need of needs(m)) queue.push([need, d + 1]);
     }
   }
   const recipes = [...alive];
@@ -154,7 +168,9 @@ export function buildModel(data: GameData, plan: FactoryPlan, mult: Multipliers)
   const producerCount = new Map<ItemId, number>();
   const outputsOf = (m: ModelRecipe) => new Set(m.outputs.filter((o) => o.qty > 0).map((o) => o.item));
   for (const m of recipes) for (const item of outputsOf(m)) producerCount.set(item, (producerCount.get(item) ?? 0) + 1);
-  const produced = (item: ItemId) => importBound(item) !== null || (producerCount.get(item) ?? 0) > 0;
+  // In fromInput an unsupplied raw item still counts as a leaf here: the LP then finds 0 output
+  // and the shortage hint names it, which tells the user what to supply.
+  const produced = (item: ItemId) => isLeaf(item) || importBound(item) !== null || (producerCount.get(item) ?? 0) > 0;
   for (let changed = true; changed; ) {
     changed = false;
     for (const m of alive) {
@@ -179,8 +195,5 @@ export function buildModel(data: GameData, plan: FactoryPlan, mult: Multipliers)
     const max = importBound(item);
     if (max !== null) imports.set(item, { max, cost: importCost(data.items[item]!, goal) });
   }
-  const targets = new Map<ItemId, number>();
-  for (const t of plan.targets) targets.set(t.item, (targets.get(t.item) ?? 0) + validRate(t.rate));
-
-  return { recipes: kept, items, targets, imports, maximize: fromInput ? plan.maximize : null };
+  return { recipes: kept, items, targets, imports, maximize: fromInput ? plan.maximize : null, depth };
 }

@@ -19,7 +19,7 @@ export function createWorkerHandler() {
       return {
         id: msg.id,
         ok: false,
-        code: err?.code ?? 'infeasible',
+        code: err?.code ?? 'internal',
         item: err?.item,
         message: e instanceof Error ? e.message : String(e),
       };

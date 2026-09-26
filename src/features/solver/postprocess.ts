@@ -20,16 +20,20 @@ function solidPorts(building: Building, dir: Port['dir']): number {
   return building.ports.filter((p) => !p.pipe && (p.dir === dir || p.dir === 'both')).length || 1;
 }
 
+/** Items on one side share the side's solid ports; the warning names the heaviest item. */
 function portWarnings(data: GameData, m: ModelRecipe, x: number, machines: number, beltSpeed: number): PortWarning[] {
   const warnings: PortWarning[] = [];
   const check = (stacks: Stack[], dir: Port['dir']) => {
     const perItem = new Map<ItemId, number>();
-    for (const s of stacks) sumInto(perItem, s.item, s.qty * x);
+    for (const s of stacks) if (!data.items[s.item]?.liquid) sumInto(perItem, s.item, s.qty * x);
+    let total = 0;
+    let heaviest: ItemId | undefined;
     for (const [item, rate] of perItem) {
-      if (data.items[item]?.liquid) continue;
-      const perMachine = rate / machines / solidPorts(m.building, dir);
-      if (perMachine > beltSpeed + EPS) warnings.push({ item, perMachine, beltSpeed });
+      total += rate;
+      if (heaviest === undefined || rate > perItem.get(heaviest)!) heaviest = item;
     }
+    const perMachine = total / machines / solidPorts(m.building, dir);
+    if (heaviest !== undefined && perMachine > beltSpeed + EPS) warnings.push({ item: heaviest, perMachine, beltSpeed });
   };
   check(m.inputs, 'in');
   check(m.outputs, 'out');
@@ -86,6 +90,7 @@ export function postprocess(data: GameData, model: Model, v: LpValues, mult: Mul
     sumInto(consumers, `target:${item}`, (model.targets.get(item) ?? 0) + (item === model.maximize ? v.out : 0));
     sumInto(consumers, `surplus:${item}`, v.sur.get(item) ?? 0);
 
+    const liquid = data.items[item]?.liquid === true;
     // Proportional split: each consumer draws from every producer by that producer's share.
     let total = 0;
     for (const p of producers.values()) total += p;
@@ -93,7 +98,7 @@ export function postprocess(data: GameData, model: Model, v: LpValues, mult: Mul
     for (const [from, p] of producers) {
       for (const [to, c] of consumers) {
         const perMin = clean((p * c) / total);
-        if (perMin > 0) edges.push({ from, to, item, perMin, belts: Math.max(1, ceil(perMin / beltSpeed)) });
+        if (perMin > 0) edges.push({ from, to, item, perMin, belts: liquid ? 0 : Math.max(1, ceil(perMin / beltSpeed)) });
       }
     }
   }

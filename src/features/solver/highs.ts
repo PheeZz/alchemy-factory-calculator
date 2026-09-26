@@ -1,5 +1,6 @@
 import highsLoader, { type Highs } from 'highs';
 import wasmUrl from 'highs/runtime?url';
+import { SolverError } from './types';
 
 let loading: Promise<Highs> | undefined;
 
@@ -18,9 +19,19 @@ export interface LpRun {
   value(column: string): number;
 }
 
+const internal = (what: string, e: unknown) =>
+  new SolverError('internal', undefined, `${what}: ${e instanceof Error ? e.message : String(e)}`);
+
 export async function runLp(lp: string): Promise<LpRun> {
-  const highs = await loadHighs();
-  const res = highs.solve(lp, { output_flag: false });
+  const highs = await loadHighs().catch((e: unknown) => {
+    throw internal('HiGHS failed to load', e);
+  });
+  let res: ReturnType<Highs['solve']>;
+  try {
+    res = highs.solve(lp, { output_flag: false });
+  } catch (e) {
+    throw internal('HiGHS rejected the model', e);
+  }
   return {
     status: res.Status,
     value: (column) => (res.Columns[column] as { Primal?: number } | undefined)?.Primal ?? 0,

@@ -5,7 +5,8 @@ import { SURPLUS_COST, type Model } from './model';
  * - `cost`: minimize import/surplus/recipe costs (optionally with output ≥ `outAtLeast`).
  * - `maximize`: maximize output of `model.maximize` only (phase 1 of fromInput).
  * - `elastic`: every balance row gets a shortage variable; minimizing them names the item
- *   an infeasible model lacks.
+ *   an infeasible model lacks. Shortage is cheaper the further upstream the item is, and
+ *   prohibitive on roots, so the hint lands on the cause rather than the target.
  */
 export type LpGoal = { kind: 'cost'; outAtLeast?: number } | { kind: 'maximize' } | { kind: 'elastic' };
 
@@ -25,6 +26,15 @@ const expr = (terms: Term[]) =>
     .filter(([c]) => c !== 0)
     .map(([c, name]) => `${c < 0 ? '-' : '+'} ${Math.abs(c)} ${name}`)
     .join(' ');
+
+const ROOT_SHORTAGE_COST = 1e4;
+
+function shortageCost(model: Model, item: ItemId): number {
+  if (model.targets.has(item) || item === model.maximize) return ROOT_SHORTAGE_COST;
+  // ponytail: per-unit weights ignore quantity scale (1 Log = 200 Plank), so a big fan-out can
+  // still pull the hint one step downstream; a structural walk over the short set would fix it
+  return Math.max(0.5 ** (model.depth.get(item) ?? 0), 1e-4);
+}
 
 export function buildLp(model: Model, goal: LpGoal): string {
   const index = new Map(model.items.map((item, k) => [item, k]));
@@ -55,7 +65,7 @@ export function buildLp(model: Model, goal: LpGoal): string {
     if (withOut && item === model.maximize) rows[k]!.push([-1, col.out]);
     if (goal.kind === 'elastic') {
       rows[k]!.push([1, col.short(k)]);
-      objective.push([1, col.short(k)]);
+      objective.push([shortageCost(model, item), col.short(k)]);
     }
   });
   if (goal.kind === 'cost') model.recipes.forEach((m, r) => objective.push([m.cost, col.x(r)]));
@@ -105,13 +115,34 @@ export function readValues(model: Model, value: (name: string) => number): LpVal
   };
 }
 
-/** Largest shortage of an elastic solve, or undefined when the model was feasible after all. */
+/**
+ * Furthest-upstream short item of an elastic solve, or undefined when nothing is short. When the
+ * short item's chain bottoms out in an item with neither producer nor source (an unsupplied raw
+ * item in fromInput), that item is the actionable answer.
+ */
 export function shortItem(model: Model, value: (name: string) => number): ItemId | undefined {
   let best: ItemId | undefined;
-  let bestV = 1e-7;
+  let bestDepth = -1;
   model.items.forEach((item, k) => {
-    const v = value(col.short(k));
-    if (v > bestV) [best, bestV] = [item, v];
+    const d = model.depth.get(item) ?? 0;
+    if (value(col.short(k)) > 1e-7 && d > bestDepth) [best, bestDepth] = [item, d];
   });
-  return best;
+  return best === undefined ? undefined : deadSource(model, best) ?? best;
+}
+
+function deadSource(model: Model, from: ItemId): ItemId | undefined {
+  const producers = (item: ItemId) => model.recipes.filter((m) => m.outputs.some((o) => o.item === item && o.qty > 0));
+  const seen = new Set([from]);
+  const queue = [from];
+  for (let i = 0; i < queue.length; i++) {
+    for (const m of producers(queue[i]!)) {
+      for (const need of [...m.inputs.map((s) => s.item), m.fuel?.item, m.fertilizer?.item]) {
+        if (need === undefined || seen.has(need)) continue;
+        seen.add(need);
+        if (!model.imports.has(need) && producers(need).length === 0) return need;
+        queue.push(need);
+      }
+    }
+  }
+  return undefined;
 }

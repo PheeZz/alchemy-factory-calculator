@@ -13,7 +13,8 @@ export const heatData = gameData(
     item('Water', { raw: true, liquid: true }),
     item('FlowerSeed', { raw: true }),
     item('Flower'),
-    item('Compost', { raw: true, nutrientValue: 12 }),
+    // nutrientSpeed 4: 24 nutrients per batch / 4 per s = 6 s per batch at speed 1.
+    item('Compost', { raw: true, nutrientValue: 12, nutrientSpeed: 4 }),
     item('Herb', { raw: true }),
     item('Essence'),
   ],
@@ -46,7 +47,8 @@ export const heatData = gameData(
       buildings: ['Nursery'],
       inputs: [{ item: 'FlowerSeed', qty: 1 }],
       outputs: [{ item: 'Flower', qty: 2, chance: 1 }],
-      timeSec: 6,
+      // GrowthSeconds placeholder, used only when no fertilizer is chosen.
+      timeSec: 10,
       nutrientPerBatch: 24,
     }),
     recipe('R_Essence', {

@@ -53,8 +53,7 @@ export function createSolverClient(
     };
     w.onerror = (e: ErrorEvent) => {
       reset();
-      // ponytail: the contract has no 'internal' code; a crashed worker surfaces as 'infeasible' with its message
-      failAll(new SolverError('infeasible', undefined, `solver worker failed: ${e.message}`));
+      failAll(new SolverError('internal', undefined, `solver worker failed: ${e.message}`));
     };
     return (worker = w);
   };
@@ -80,7 +79,7 @@ export function createSolverClient(
     },
     dispose() {
       reset();
-      failAll(new SolverError('timeout', undefined, 'solver disposed'));
+      failAll(new SolverError('internal', undefined, 'solver disposed'));
     },
   };
 }

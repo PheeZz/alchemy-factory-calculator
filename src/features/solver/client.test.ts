@@ -12,7 +12,7 @@ function fakeWorker(respond = true) {
   const posted: WorkerRequest[] = [];
   const w = {
     onmessage: null as ((e: MessageEvent) => void) | null,
-    onerror: null,
+    onerror: null as ((e: ErrorEvent) => void) | null,
     terminated: false,
     postMessage(msg: WorkerRequest) {
       posted.push(msg);
@@ -50,6 +50,15 @@ describe('createSolverClient', () => {
     const err = await client.solve(chainData, plan({ targets: [{ item: 'Alloy', rate: 1 }] }), level0).catch((e) => e);
     expect(err).toBeInstanceOf(SolverError);
     expect(err).toMatchObject({ code: 'unreachable', item: 'Mystery' });
+    client.dispose();
+  });
+
+  it('a crashed worker rejects pending solves as internal', async () => {
+    const fake = fakeWorker(false);
+    const client = createSolverClient(() => fake.worker);
+    const pending = client.solve(chainData, plan({ targets: [{ item: 'Gear', rate: 1 }] }), level0).catch((e) => e);
+    fake.w.onerror?.({ message: 'boom' } as ErrorEvent);
+    expect(await pending).toMatchObject({ code: 'internal' });
     client.dispose();
   });
 
