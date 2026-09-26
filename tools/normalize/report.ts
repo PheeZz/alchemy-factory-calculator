@@ -61,7 +61,7 @@ const EXPLAINED: Record<string, Record<string, [DiffClass, string]>> = {
     'Gentian_Mixture': ['code', 'starfi5h virtual item "Gentian Mixture" (not in game data)'],
     'Seed Plot (Gentian_Mixture)': ['code', 'starfi5h virtual item "Gentian Mixture"'],
     'Unstable Catalyst (Gentian Mixture)': ['code', 'starfi5h virtual Cauldron row with a virtual item'],
-    'Steam Boiler (High)': ['code', 'Steam Boiler output is C++ (SteamBoilerComponent has no data); no DT row, not generated'],
+    'Steam Boiler (High)': ['game', 'matches our SteamBoiler_High (300 Steam / 2 s, 3000 heat/s) decoded from the game binary'],
     'Refined Sand': ['game', 'collapsed chain, see Sand8'],
     MoonlitSoap: ['game', 'DT CraftType Blend → Blender (faultyd3v row identical); starfi5h/joejoesgit put it on the Advanced Blender'],
     Mors_Alt: ['code', 'DT row Vitae → Mors (5 s); starfi5h\'s generic "Custom" row has no input — its concrete inputs are our Paradox_<item> rows'],
@@ -264,6 +264,8 @@ function classify(d: Diff, data: GameData, raw: Raw, dropped: string[] = []): Di
     return { ...d, cls: 'game', note: 'bHideInGame row (placeholder for a fail product or cut content), not obtainable in 1.0' };
   if (d.kind === 'oracle-only' && dropped.includes(d.recipe))
     return { ...d, cls: 'game', note: 'hidden row whose product item does not exist in DT_Enemies; dropped by the normalizer' };
+  if (d.recipe.startsWith('SteamBoiler_'))
+    return { ...d, cls: 'code', note: 'Steam Boiler power setting decoded from the game binary (research/06-steam.md); the oracle has no row for this setting (starfi5h lists High only)' };
   // compared rows differ in input: oracles list only a few Paradox inputs (starfi5h computes the rest with the same formula)
   if (d.recipe.startsWith('Paradox_') && !d.detail.includes(`(${d.recipe.slice('Paradox_'.length)})`))
     return { ...d, cls: 'code', note: 'generated Paradox Crucible input (C++ "any item → Oblivion Essence"); the oracle has no row for this input' };
@@ -491,7 +493,7 @@ ${table(renamedRows)}
 - \`special\` (kept, solver ignores): ${special.join(', ')}. Cauldron rows: output is chosen from ingredient value by C++ (see mechanics.json), heat is output-dependent. Plant rows = Seed Plot (manual, 1 seed consumed per cycle, not sped up).
 - \`hidden: true\` (= \`unlockedBy: null\`, ${hidden.length}): ${hidden.join(', ')} — all are \`bHideInGame\` rows. Every other recipe resolves to a skill: its own non-deprecated skill node, else the skill that unlocks its default building (1.0 deprecated the coin/ingot-alt nodes, they fall back to the machine), nursery rows take the later of machine and seed unlock.
 - Dropped (reference an item that does not exist in DT_Enemies): ${dropped.join(', ') || 'none'}.
-- No DT rows exist for Steam (Steam Boiler), Purchasing/Bank Portal or catalyst-modified Advanced Athanor outputs, so none were generated (\`steam\`, \`portal\`, \`catalyst\` specials are unused in this build). Raw buying is \`Item.buyPrice\` (\`AllowPortalSupply\` + \`StockCost\`).
+- Steam: \`SteamBoiler_{Low,Mid,High}\` recipes decoded from the game binary (research/06-steam.md); \`Steam.heatValue\` 20 is the DT value. No DT rows exist for Purchasing/Bank Portal or catalyst-modified Advanced Athanor outputs, so none were generated (\`steam\`, \`portal\`, \`catalyst\` specials are unused). Raw buying is \`Item.buyPrice\` (\`AllowPortalSupply\` + \`StockCost\`).
 
 ## Open questions
 

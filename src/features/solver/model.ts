@@ -17,6 +17,8 @@ export interface ModelRecipe {
   fertilizer: Stack | null;
   /** Objective coefficient of x_r. */
   cost: number;
+  /** Fuel that is also this input-less recipe's output (boiler on its own Steam): rejected once chosen. */
+  burnsOwnOutput: ItemId | null;
 }
 
 export interface ModelImport {
@@ -129,6 +131,7 @@ export function buildModel(data: GameData, plan: FactoryPlan, mult: Multipliers)
         fuel: fuel ? { item: fuel.id, qty: heatPerBatch / (fuel.heatValue * mult.fuel) } : null,
         fertilizer: fert ? { item: fert.id, qty: r.nutrientPerBatch! / (fert.nutrientValue * mult.fertilizer) } : null,
         cost: goal === 'machines' ? machinesPerBatch : RECIPE_COST,
+        burnsOwnOutput: fuel && r.inputs.length === 0 && r.outputs.some((o) => o.item === fuel.id) ? fuel.id : null,
       };
     }
     resolved.set(r, mr);
@@ -160,6 +163,9 @@ export function buildModel(data: GameData, plan: FactoryPlan, mult: Multipliers)
     if (list.length === 0 && importBound(item) === null) cause.set(item, item);
     for (const m of list) {
       if (alive.has(m)) continue;
+      // Heat → item with nothing consumed: burning the product is a zero loop, or free energy once
+      // fuel efficiency > 0 (unbounded LP). Material self-fuel (Charcoal, Plank) is fine.
+      if (m.burnsOwnOutput) throw new SolverError('invalidInput', m.burnsOwnOutput, `${m.recipe.id} cannot burn its own output`);
       alive.add(m);
       for (const need of needs(m)) queue.push([need, d + 1]);
     }

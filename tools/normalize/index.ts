@@ -7,7 +7,7 @@ import { iconJob, writeIcons, type IconJob } from './icons';
 import { markRaw, normalizeItem, reachable } from './items';
 import { loadRaw, ROOT, type RawText } from './load';
 import { buildLocales, disambiguate } from './locale';
-import { normalizeRecipe, nurseryRecipe, paradoxRecipe } from './recipes';
+import { normalizeRecipe, nurseryRecipe, paradoxRecipe, steamBoilerRecipes } from './recipes';
 import { writeReport } from './report';
 import { latest, unlockIndex } from './unlocks';
 import { upgradeTracks } from './upgrades';
@@ -54,6 +54,9 @@ async function main() {
     const bs = tree ? [tree] : buildingsFor('Nursery');
     recipes.push(nurseryRecipe(seedRow, seed, bs, raw.items, latest(unlocks, [unlocks.building(bs[0]!), unlocks.item(seedRow)])));
   }
+
+  const boilers = buildingsFor('SteamBoiler');
+  recipes.push(...steamBoilerRecipes(boilers, raw.items.Steam!.DisplayName.Key ?? 'Steam', unlocks.building(boilers[0]!) ?? null));
 
   // a row pointing at a missing DT_Enemies item cannot be referenced safely (hidden Sulfur_Alt → "Sulfur_Alt")
   const dropped = recipes.filter((r) => [...r.inputs, ...r.outputs].some((s) => !raw.items[s.item])).map((r) => r.id);

@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import type { RawCount, RawItem, RawRecipe } from './load';
-import { normalizeRecipe, nurseryRecipe, paradoxRecipe, type RecipeContext } from './recipes';
+import { normalizeRecipe, nurseryRecipe, paradoxRecipe, steamBoilerRecipes, type RecipeContext } from './recipes';
 
 const none: RawCount = { IngredientName: 'None', Count: 0 };
 const item = (MaximumStack: number, CauldronCost = 1): RawItem => ({
@@ -164,5 +164,17 @@ describe('paradoxRecipe (Paradox Crucible: any item → Oblivion Essence)', () =
     const logs = paradoxRecipe('Wood', items, ['ParadoxCrucible'], 'ParadoxCrucible');
     expect(logs.timeSec).toBeCloseTo(9.375, 6);
     expect(logs.alternate).toBe(true);
+  });
+});
+
+describe('steamBoilerRecipes (SteamBoilerComponent power settings)', () => {
+  it('Low 30/6 s, Mid 100/4 s, High 300/2 s; heat = 20 per Steam; High is the default', () => {
+    const rs = steamBoilerRecipes(['SteamBoiler'], 'Ingredient_Name_Steam', 'SteamBoiler');
+    expect(rs.map((r) => [r.id, r.outputs[0]!.qty, r.timeSec, r.heatPerSec, r.alternate])).toEqual([
+      ['SteamBoiler_Low', 30, 6, 100, true],
+      ['SteamBoiler_Mid', 100, 4, 500, true],
+      ['SteamBoiler_High', 300, 2, 3000, false],
+    ]);
+    for (const r of rs) expect((r.heatPerSec! * r.timeSec) / r.outputs[0]!.qty).toBe(20);
   });
 });

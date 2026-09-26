@@ -139,6 +139,26 @@ describe('solve', () => {
     expect(none.totals.heatPerSec).toBeCloseTo(10, 9);
   });
 
+  it('steam: heaters burn Steam, the boiler burns its own fuel', async () => {
+    const p = plan({ targets: [{ item: 'Ingot', rate: 30 }], fuel: 'Steam', fuelFor: { SteamBoiler_High: 'Coal' } });
+    const res = await solve(heatData, p, level0);
+    // Furnaces: 30 batches · 20 heat = 600 heat/min = 10 heat/s → 10·60/20 = 30 Steam/min.
+    expect(node(res, 'R_Ingot').fuel).toEqual({ item: 'Steam', rate: expect.closeTo(30, 9) });
+    // Boiler: 30/300 = 0.1 batches/min → 0.1·2/60 = 1/300 boilers (= 30 Steam/min ÷ (300/2·60)).
+    const boiler = node(res, 'SteamBoiler_High');
+    expect(boiler.machinesExact).toBeCloseTo(1 / 300, 12);
+    // Its 0.1·6000 = 600 heat/min comes from Coal: 600/40 = 15 Coal/min; heat 10 + 10 = 20/s.
+    expect(boiler.fuel).toEqual({ item: 'Coal', rate: expect.closeTo(15, 9) });
+    expect(res.totals.heatPerSec).toBeCloseTo(20, 9);
+    expect(res.edges.find((e) => e.item === 'Steam')?.belts).toBe(0);
+  });
+
+  it('a recipe without inputs may not burn its own output', async () => {
+    // Boiler on Steam would be a free-energy (fuel efficiency > 0) or zero loop.
+    const p = plan({ targets: [{ item: 'Ingot', rate: 30 }], fuel: 'Steam' });
+    expect(await solveError(heatData, p)).toMatchObject({ code: 'invalidInput', item: 'Steam' });
+  });
+
   it('nursery: fertilizer sets growth time and consumption', async () => {
     const p = plan({ targets: [{ item: 'Flower', rate: 40 }], fertilizer: 'Compost' });
     const res = await solve(heatData, p, level0);

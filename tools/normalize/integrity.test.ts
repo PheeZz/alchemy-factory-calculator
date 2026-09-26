@@ -93,6 +93,11 @@ describe('gamedata.json pinned game semantics', () => {
     for (const t of data.upgrades) t.values.forEach((v, l) => expect(v).toBeCloseTo(COMMUNITY_FORMULAS[t.id](l), 5));
     expect(data.constants.baseBeltSpeed).toBe(60);
   });
+  it('steam: boiler recipes turn 20 heat into 1 Steam, the pad burns Steam at 20 heat', () => {
+    expect(data.items.Steam).toMatchObject({ raw: false, liquid: true, heatValue: 20 });
+    expect(data.recipes.SteamBoiler_High).toMatchObject({ outputs: [{ item: 'Steam', qty: 300 }], timeSec: 2, heatPerSec: 3000, buildings: ['SteamBoiler'] });
+    expect(data.buildings.SteamHeater).toMatchObject({ category: 'heating', heatSlots: 9 });
+  });
   it('raw = not produced by any usable recipe', () => {
     expect(data.items.Wood!.raw).toBe(true);
     expect(data.items.WoodBoard!.raw).toBe(false);
