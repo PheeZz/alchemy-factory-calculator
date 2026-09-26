@@ -17,6 +17,7 @@ export const heatData = gameData(
     item('Compost', { raw: true, nutrientValue: 12, nutrientSpeed: 4 }),
     item('Herb', { raw: true }),
     item('Essence'),
+    item('Steam', { liquid: true, heatValue: 20 }),
   ],
   [
     recipe('R_Plank', {
@@ -58,9 +59,17 @@ export const heatData = gameData(
       timeSec: 5,
       yieldSkill: true,
     }),
+    // Pure heat → item: 2 s · 3000/s = 6000 heat per 300 Steam (20 each, the Steam heatValue).
+    recipe('SteamBoiler_High', {
+      buildings: ['SteamBoiler'],
+      outputs: [{ item: 'Steam', qty: 300, chance: 1 }],
+      timeSec: 2,
+      heatPerSec: 3000,
+    }),
   ],
   [
     building('Sawmill', { heatCost: 2 }),
+    building('SteamBoiler'),
     building('Furnace', { heatCost: 5 }),
     building('Farm', { category: 'farming' }),
     building('Nursery', { category: 'farming' }),

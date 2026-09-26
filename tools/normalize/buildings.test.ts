@@ -77,6 +77,11 @@ describe('normalizeBuilding', () => {
     expect(b.category).toBe('heating');
     expect(b.buildCost).toEqual([{ item: 'Stone', qty: 20 }]);
   });
+  it('Steam Boiler / Cauldron: HeatCost 0 but tagged Building.Heating → sits on a heater', () => {
+    const cell = (X: number) => ({ position: { X, Y: 0, Z: 0 }, IsFoundationGrid: true });
+    const b = normalizeBuilding('SteamBoiler', building({ BuildingTags: ['Building.Heating'], GridConfigList: [cell(0), cell(1), cell(2)] }), { craftType: 'SteamBoiler', speedMult: 1, heater: false }, null);
+    expect(b).toMatchObject({ heatCost: 0, heatSlotsRequired: 3, heatSlots: null });
+  });
   it('Crucible: heated machine occupies its foundation cells', () => {
     const cell = (X: number) => ({ position: { X, Y: 0, Z: 0 }, IsFoundationGrid: true });
     const b = normalizeBuilding('Crucible', building({ HeatCost: 4, GridConfigList: [cell(0), cell(1)] }), { craftType: 'Calcinate', speedMult: 1, heater: false }, null);

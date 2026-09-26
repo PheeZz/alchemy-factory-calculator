@@ -15,6 +15,7 @@ const IMPLIED_CRAFT_TYPE: Record<string, string> = {
   CauldronFacilityComponent: 'Cauldron',
   NurseryFacilityComponent: 'Nursery',
   TreeNurseryFacilityComponent: 'TreeNursery',
+  SteamBoilerComponent: 'SteamBoiler',
   'Super:Class\'SeedPlotActor\'': 'Plant',
 };
 const ENUM_CRAFT_TYPE: Record<string, string> = {
@@ -87,7 +88,8 @@ export function normalizeBuilding(id: string, b: RawBuilding, role: BuildingRole
   const cells = [...gridCells(b).values()];
   const bottomZ = Math.min(...cells.map((c) => c.cell.z));
   const base = cells.filter((c) => c.cell.z === bottomZ);
-  const heated = b.HeatCost > 0;
+  // Cauldrons and the Steam Boiler sit on a heater too, but their draw is set per recipe (HeatCost 0)
+  const heated = !role.heater && (b.HeatCost > 0 || b.BuildingTags.includes('Building.Heating'));
   return {
     id,
     nameKey: b.DisplayName.Key ?? id,
