@@ -312,6 +312,19 @@ describe('solve', () => {
     expect(edge(juice, 'R_Juice', 'target:Juice', 'Juice').belts).toBe(0);
   });
 
+  it('hybrid weighs imports by value; optimize raw counts items', async () => {
+    const p = plan({ targets: [{ item: 'Side', rate: 1 }, { item: 'Metal', rate: 10 }] });
+    // Side needs R_Side at x = 0.5 (0.5 Pricey, +1 Metal). The other 9 Metal:
+    //   via R_Side: 4.5 more Pricey → value 100·5 = 500; via R_Metal: 9 Cheap → 100·0.5 + 9 = 59.
+    const hybrid = await solve(edgeData, p, level0);
+    expect(node(hybrid, 'R_Side').batchesPerMin).toBeCloseTo(0.5, 9);
+    expect(node(hybrid, 'R_Metal').batchesPerMin).toBeCloseTo(9, 9);
+    // Counting items instead: 5 Pricey (and 9 surplus Side) beats 0.5 Pricey + 9 Cheap.
+    const raw = await solve(edgeData, { ...p, optimize: 'raw' }, level0);
+    expect(node(raw, 'R_Side').batchesPerMin).toBeCloseTo(5, 9);
+    expect(raw.nodes.some((n) => n.id === 'R_Metal')).toBe(false);
+  });
+
   it('hidden recipes are used only when picked explicitly', async () => {
     const base = plan({ targets: [{ item: 'Q', rate: 10 }] });
     expect(ids(await solve(edgeData, base, level0))).toEqual(['R_Q']);

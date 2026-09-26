@@ -15,6 +15,10 @@ export const edgeData = gameData(
     item('Mixed'),
     item('Juice', { liquid: true }),
     item('Q'),
+    item('Cheap', { raw: true, value: 1 }),
+    item('Pricey', { raw: true, value: 100 }),
+    item('Metal'),
+    item('Side'),
   ],
   [
     // X ← 2Y, Y ← X: every X needs two X back, so no positive target is reachable.
@@ -38,6 +42,16 @@ export const edgeData = gameData(
     // Cheaper, sorts first by id, but cut from the game.
     recipe('R_AQ', { buildings: ['Box'], hidden: true, inputs: [{ item: 'PA', qty: 1 }], outputs: [{ item: 'Q', qty: 1, chance: 1 }] }),
     recipe('R_Q', { buildings: ['Box'], inputs: [{ item: 'PA', qty: 2 }], outputs: [{ item: 'Q', qty: 1, chance: 1 }] }),
+    recipe('R_Metal', { buildings: ['Box'], inputs: [{ item: 'Cheap', qty: 1 }], outputs: [{ item: 'Metal', qty: 1, chance: 1 }] }),
+    // Needed for Side, and also yields 2 Metal per Pricey: fewer raw items, far more value.
+    recipe('R_Side', {
+      buildings: ['Box'],
+      inputs: [{ item: 'Pricey', qty: 1 }],
+      outputs: [
+        { item: 'Side', qty: 2, chance: 1 },
+        { item: 'Metal', qty: 2, chance: 1 },
+      ],
+    }),
   ],
   // One solid input port, one solid output port (builder default).
   [building('Box')],

@@ -2,7 +2,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createSolverClient, SOLVE_TIMEOUT_MS, type WorkerRequest } from './client';
 import { createWorkerHandler } from './worker';
-import { solve, SolverError } from './index';
+import { rankFuels, solve, SolverError } from './index';
+import { heatData } from './fixtures/heat';
 import { level0, plan } from './fixtures/builders';
 import { chainData } from './fixtures/chain';
 
@@ -42,6 +43,12 @@ describe('createSolverClient', () => {
 
     await client.solve({ ...chainData, build: { id: 'other', version: '1' } }, p, level0);
     expect(fake.posted.map((m) => m.type)).toEqual(['data', 'solve', 'solve', 'data', 'solve']);
+    client.dispose();
+  });
+
+  it('ranks fuels in the worker', async () => {
+    const client = createSolverClient(() => fakeWorker().worker);
+    expect(await client.rankFuels(heatData, level0)).toEqual(await rankFuels(heatData, level0));
     client.dispose();
   });
 
