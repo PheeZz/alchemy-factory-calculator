@@ -55,6 +55,10 @@ export interface RawRecipe {
   SideProduct: RawCount;
   bHideInGame: boolean;
   bAlternate: boolean;
+  /** Product index per cycle: 0 = main, 1/2 = fail products (absent in hand-written rows). */
+  ProductSequence?: number[];
+  UnstableSequence?: number[];
+  CatalystCost?: number;
 }
 
 export interface RawGridConfig {
@@ -99,6 +103,11 @@ export interface RawSkill {
   LevelUnlockItems: string[];
   ExtraUnlockConstructions: string[];
   Deprecated: boolean;
+  /** Absent in hand-written test rows. */
+  Predecessors?: string[];
+  /** Money vector: X gold, Y silver, Z copper. */
+  UnlockCost?: RawVec;
+  UnlockResearchPoints?: number;
 }
 export interface RawWorkbench {
   UnlockSkillName: string;

@@ -14,7 +14,7 @@ export type WorkerRequest = { type: 'data'; data: GameData } | (WorkerJob & { id
 
 export type WorkerResponse =
   | { id: number; ok: true; result: WorkerResult }
-  | { id: number; ok: false; code: SolverErrorCode; item?: ItemId; message: string };
+  | { id: number; ok: false; code: SolverErrorCode; item?: ItemId; message: string; requiredTech?: string[] };
 
 export const SOLVE_TIMEOUT_MS = 10_000;
 
@@ -56,7 +56,7 @@ export function createSolverClient(
       pending.delete(msg.id);
       clearTimeout(p.timer);
       if (msg.ok) p.resolve(msg.result);
-      else p.reject(new SolverError(msg.code, msg.item, msg.message));
+      else p.reject(new SolverError(msg.code, msg.item, msg.message, msg.requiredTech));
     };
     w.onerror = (e: ErrorEvent) => {
       reset();

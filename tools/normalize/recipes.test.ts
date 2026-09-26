@@ -178,3 +178,35 @@ describe('steamBoilerRecipes (SteamBoilerComponent power settings)', () => {
     for (const r of rs) expect((r.heatPerSec! * r.timeSec) / r.outputs[0]!.qty).toBe(20);
   });
 });
+
+describe('normalizeRecipe — catalysts', () => {
+  const goldDust = (craftType: string) =>
+    normalizeRecipe('GoldDust3', row({
+      IngredientList: [{ IngredientName: 'Mercury', Count: 18 }],
+      ProductInfo: { IngredientName: 'GoldDust3', Count: 1 },
+      CraftType: `EBeltTDCraftType::${craftType}`, CraftingTime: 8,
+      FailRate1: 0.3, FailProduct1: { IngredientName: 'GoldDust2', Count: 1 },
+      FailRate2: 0.6, FailProduct2: { IngredientName: 'GoldDust', Count: 1 },
+      ProductSequence: [2, 2, 1, 2, 2, 1, 2, 2, 1, 0], UnstableSequence: [1, 1, 1, 1, 0], CatalystCost: 1000,
+    }), ctx);
+
+  it('Advanced Athanor row: unstable mix from UnstableSequence, resonant = every product (= starfi5h "Gold Dust")', () => {
+    // UnstableSequence [1,1,1,1,0]: index 0 (main) 1/5, index 1 (GoldDust2) 4/5 → starfi5h unstable { 2, 8 } per 10 runs.
+    expect(goldDust('AdAthanor').catalyst).toEqual({
+      cost: 1000,
+      unstableOutputs: [
+        { item: 'GoldDust3', qty: 0.2, chance: 0.2 },
+        { item: 'GoldDust2', qty: 0.8, chance: 0.8 },
+      ],
+      resonantOutputs: [
+        { item: 'GoldDust3', qty: 1, chance: 1 },
+        { item: 'GoldDust2', qty: 1, chance: 1 },
+        { item: 'GoldDust', qty: 1, chance: 1 },
+      ],
+    });
+  });
+
+  it('other craft types never take catalysts, whatever their CatalystCost', () => {
+    expect(goldDust('Athanor').catalyst).toBeUndefined();
+  });
+});
