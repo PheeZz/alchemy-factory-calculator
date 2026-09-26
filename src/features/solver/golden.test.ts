@@ -54,6 +54,21 @@ describe('golden: real data', () => {
     expect(res.totals.heatPerSec).toBeCloseTo(54, 9);
   });
 
+  it('Iron Ingot heated by Steam from a Coal-fired High boiler', async () => {
+    const res = await run([{ item: 'IronIngot', rate: 60 }], { fuel: 'Steam', fuelFor: { SteamBoiler_High: 'Coal' } });
+    // Smelters draw 54 heat/s → 54·60/20 = 162 Steam/min. SteamBoiler_High: no inputs → 300 Steam in 2 s
+    // at 3000 heat/s: x = 162/300 = 0.54 → 0.54·2/60 = 0.018 boilers (= 162 ÷ (300/2·60)),
+    // drawing 0.54·6000/60 = 54 heat/s → 54·60/540 = 6 Coal/min: the 1:1 round trip of research/06-steam.md.
+    expect(node(res, 'IronIngot').fuel).toEqual({ item: 'Steam', rate: expect.closeTo(162, 9) });
+    expect(node(res, 'SteamBoiler_High').machinesExact).toBeCloseTo(0.018, 12);
+    expect(node(res, 'SteamBoiler_High').fuel).toEqual({ item: 'Coal', rate: expect.closeTo(6, 9) });
+    expect(res.totals.heatPerSec).toBeCloseTo(108, 9);
+    await expect(run([{ item: 'IronIngot', rate: 60 }], { fuel: 'Steam' })).rejects.toMatchObject({
+      code: 'invalidInput',
+      item: 'Steam',
+    });
+  });
+
   it('Charcoal (Crucible, heat 4/s) burning its own Charcoal', async () => {
     const res = await run([{ item: 'Charcoal', rate: 60 }], { fuel: 'Charcoal' });
     // 1 Plank → 1 Charcoal in 4 s: heat/batch 16, 16/40 = 0.4 burned → net 0.6 → x = 100,
