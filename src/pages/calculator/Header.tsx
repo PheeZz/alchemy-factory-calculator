@@ -2,20 +2,7 @@ import { FactorySwitcher } from '@/features/factory/FactorySwitcher';
 import { useLangStore, useT, type Lang } from '@/shared/i18n';
 import { cx } from '@/shared/lib/cx';
 import { IconButton } from '@/shared/ui/Button';
-
-/** Circle-triangle-square: the classic alchemical "philosopher's stone" sigil, drawn inline. */
-function Sigil() {
-  return (
-    <svg viewBox="0 0 40 40" className="size-9 shrink-0 text-arcane drop-shadow-[0_0_6px_rgb(181_116_255/0.75)]" aria-hidden="true">
-      <g fill="none" stroke="currentColor" strokeWidth="1.4">
-        <circle cx="20" cy="20" r="18" />
-        <path d="M20 5.5 32.6 27.3H7.4Z" />
-        <rect x="13.2" y="14.2" width="13.6" height="13.1" className="text-flow" stroke="var(--color-flow)" />
-        <circle cx="20" cy="21" r="4.4" stroke="var(--color-ember)" />
-      </g>
-    </svg>
-  );
-}
+import { Sigil } from '@/shared/ui/Sigil';
 
 function LangToggle() {
   const t = useT();

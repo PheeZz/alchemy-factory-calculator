@@ -134,13 +134,14 @@ dialog.sheet::backdrop {
   overflow: hidden;
 }
 
+/* Edges follow ELK routes and attach anywhere along a node side, so handle dots would mislead. */
 .react-flow__handle {
-  width: 6px;
-  height: 6px;
+  width: 1px;
+  height: 1px;
   min-width: 0;
   min-height: 0;
   border: none;
-  background: rgb(176 164 255 / 0.45);
+  opacity: 0;
 }
 
 .react-flow__node:focus-visible {

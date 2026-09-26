@@ -1,9 +1,11 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import type { GameData, GameLocale } from '@/shared/data/types';
-import type { SolveResult } from '@/features/solver/types';
 import { FactoryList } from '@/features/factory/FactoryList';
 import { FactorySettings } from '@/features/factory/FactorySettings';
+import { copyShareLink } from '@/features/factory/share';
+import { useActiveFactory, useFactoryStore } from '@/features/factory/store';
+import { useSolve } from '@/features/factory/useSolve';
 import { NodeInspector } from '@/features/node-inspector/NodeInspector';
 import { SummaryContent } from '@/features/summary/SummaryContent';
 import { SummaryPanel } from '@/features/summary/SummaryPanel';
@@ -16,25 +18,15 @@ import { GraphStage } from './GraphStage';
 import { Header } from './Header';
 import { MobileNav, type SheetId } from './MobileNav';
 
-export type CalculatorStatus = 'idle' | 'solving' | 'error';
-export interface SolveErrorInfo {
-  code: string;
-  item?: string;
-}
 
-interface CalculatorPageProps {
-  data: GameData;
-  locale: GameLocale;
-  result: SolveResult | null;
-  status: CalculatorStatus;
-  error?: SolveErrorInfo;
-  onShare?: () => void;
-}
+const MOBILE_QUERY = '(max-width: 1023.98px)';
+const isMobile = () => matchMedia(MOBILE_QUERY).matches;
 
-const isMobile = () => matchMedia('(max-width: 1023.98px)').matches;
-
-export function CalculatorPage({ data, locale, result, status, error, onShare }: CalculatorPageProps) {
+export function CalculatorPage({ data, locale }: { data: GameData; locale: GameLocale }) {
   const t = useT();
+  const factory = useActiveFactory();
+  const levels = useFactoryStore((s) => s.levels);
+  const { result, status, error } = useSolve(data, factory.plan, levels);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sheet, setSheet] = useState<SheetId | null>(null);
 
@@ -44,7 +36,17 @@ export function CalculatorPage({ data, locale, result, status, error, onShare }:
     if (id && isMobile()) setSheet('inspector');
   }, []);
   const closeInspector = () => setSelectedId(null);
-  const share = onShare ?? (() => toast(t('share.soon')));
+
+  // Sheets are modal dialogs: one left open while the window grows past the breakpoint (tablet
+  // rotation) would keep the desktop layout inert behind an invisible backdrop.
+  useEffect(() => {
+    const mq = matchMedia(MOBILE_QUERY);
+    const onChange = () => !mq.matches && setSheet(null);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  const share = () =>
+    copyShareLink(data.build.id, factory).then((ok) => toast(t(ok ? 'share.copied' : 'share.copyFailed'), ok ? 'info' : 'error'));
 
   const controls = (
     <>
@@ -60,7 +62,7 @@ export function CalculatorPage({ data, locale, result, status, error, onShare }:
 
         <div className="flex min-h-0 flex-1 lg:grid lg:grid-cols-[340px_minmax(0,1fr)_auto] lg:gap-3 lg:p-3">
           <aside aria-label={t('aside.controls')} className="hidden min-h-0 flex-col gap-3 overflow-y-auto pr-1 lg:flex">
-            <FactoryList />
+            <FactoryList data={data} />
             {controls}
             <UpgradesPanel data={data} />
           </aside>
@@ -71,6 +73,8 @@ export function CalculatorPage({ data, locale, result, status, error, onShare }:
               result={result}
               status={status}
               error={error}
+              mode={factory.plan.mode}
+              onOpenTargets={() => setSheet('targets')}
               selectedId={selectedId}
               onSelectNode={onSelectNode}
             />
@@ -98,7 +102,7 @@ export function CalculatorPage({ data, locale, result, status, error, onShare }:
 
         <Sheet open={sheet === 'targets'} onClose={() => setSheet(null)} title={t('nav.targets')}>
           <div className="flex flex-col gap-3">
-            <FactoryList />
+            <FactoryList data={data} />
             {controls}
           </div>
         </Sheet>

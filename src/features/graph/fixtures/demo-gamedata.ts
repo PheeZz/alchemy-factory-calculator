@@ -11,6 +11,7 @@ const item = (id: string, p: Partial<Item> = {}): Item => ({
   buyPrice: null,
   heatValue: 0,
   nutrientValue: 0,
+  nutrientSpeed: 0,
   liquid: false,
   maxStack: 100,
   tags: [],
@@ -47,6 +48,7 @@ const recipe = (id: string, p: Partial<Recipe>): Recipe => ({
   nutrientPerBatch: null,
   alternate: false,
   special: null,
+  hidden: false,
   unlockedBy: null,
   yieldSkill: false,
   ...p,
@@ -65,7 +67,7 @@ const items = [
   item('LinseedOil', { liquid: true, value: 45 }),
   item('SaltRock', { raw: true, buyPrice: 8 }),
   item('Salt', { value: 15 }),
-  item('PlantAsh', { raw: true, buyPrice: 15, nutrientValue: 8 }),
+  item('PlantAsh', { raw: true, buyPrice: 15, nutrientValue: 8, nutrientSpeed: 2 }),
   item('Elixir', { value: 900 }),
 ];
 

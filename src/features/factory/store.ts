@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import type { BuildingId, ItemId, RecipeId } from '@/shared/data/types';
 import type { FactoryPlan, OptimizeGoal, Rate, UpgradeLevels } from '@/features/solver/types';
 import { translate, useLangStore } from '@/shared/i18n';
+import { isFactoryDraft, type FactoryDraft } from './schema';
 
 export interface Factory {
   id: string;
@@ -17,6 +18,10 @@ interface FactoryData {
 }
 
 interface FactoryActions {
+  /** Called once game data is loaded: remembers per-build plan defaults and guarantees an active factory. */
+  init: (defaults: Partial<FactoryPlan>) => void;
+  /** Adds factories from a share link or file as new ones (never overwrites); returns their ids. */
+  importFactories: (drafts: FactoryDraft[]) => string[];
   createFactory: (name?: string) => string;
   renameFactory: (id: string, name: string) => void;
   deleteFactory: (id: string) => void;
@@ -40,7 +45,7 @@ interface FactoryActions {
   setLevels: (levels: Partial<UpgradeLevels>) => void;
 }
 
-export type FactoryState = FactoryData & FactoryActions;
+export type FactoryState = FactoryData & FactoryActions & { planDefaults: Partial<FactoryPlan> };
 
 export const STORAGE_KEY = 'afc:v1';
 const VERSION = 1;
@@ -74,23 +79,20 @@ const newId = () => crypto.randomUUID();
 
 const defaultName = (n: number) => translate(useLangStore.getState().lang, 'factory.defaultName', { n });
 
-function initialData(): FactoryData {
-  const first: Factory = { id: newId(), name: defaultName(1), plan: emptyPlan() };
-  return { factories: [first], activeId: first.id, levels: zeroLevels() };
-}
+// Starts empty: the first factory is created by init() once game data provides fuel/fertilizer defaults.
+const initialData = (): FactoryData => ({ factories: [], activeId: '', levels: zeroLevels() });
 
-/** Structural guard for whatever sits in localStorage: bad data resets instead of crashing the app. */
-function isFactoryData(v: unknown): v is FactoryData {
-  if (!v || typeof v !== 'object') return false;
+const isFactory = (f: unknown): f is Factory => isFactoryDraft(f) && typeof (f as Factory).id === 'string';
+
+/** Keeps the valid factories from whatever sits in localStorage; null when nothing usable is left. */
+function readPersisted(v: unknown): FactoryData | null {
+  if (!v || typeof v !== 'object') return null;
   const d = v as Partial<FactoryData>;
-  return (
-    Array.isArray(d.factories) &&
-    d.factories.length > 0 &&
-    d.factories.every((f) => f && typeof f.id === 'string' && f.plan && Array.isArray(f.plan.targets)) &&
-    typeof d.activeId === 'string' &&
-    !!d.levels &&
-    typeof d.levels === 'object'
-  );
+  const factories = Array.isArray(d.factories) ? d.factories.filter(isFactory) : [];
+  if (factories.length === 0) return null;
+  const levels = { ...zeroLevels(), ...(d.levels && typeof d.levels === 'object' ? d.levels : {}) };
+  const activeId = factories.some((f) => f.id === d.activeId) ? d.activeId! : factories[0]!.id;
+  return { factories, activeId, levels };
 }
 
 function withKey<V>(rec: Record<string, V>, key: string, value: V | null): Record<string, V> {
@@ -108,11 +110,26 @@ export const useFactoryStore = create<FactoryState>()(
           factories: s.factories.map((f) => (f.id === s.activeId ? { ...f, plan: { ...f.plan, ...fn(f.plan) } } : f)),
         }));
 
+      const fresh = (name: string): Factory => ({ id: newId(), name, plan: { ...emptyPlan(), ...get().planDefaults } });
+
       return {
         ...initialData(),
+        planDefaults: {},
 
+        init: (planDefaults) => {
+          set({ planDefaults });
+          if (get().factories.length === 0) {
+            const f = fresh(defaultName(1));
+            set({ factories: [f], activeId: f.id });
+          }
+        },
+        importFactories: (drafts) => {
+          const added = drafts.map((d): Factory => ({ id: newId(), name: d.name, plan: structuredClone(d.plan) }));
+          if (added.length) set((s) => ({ factories: [...s.factories, ...added], activeId: added[0]!.id }));
+          return added.map((f) => f.id);
+        },
         createFactory: (name) => {
-          const f: Factory = { id: newId(), name: name ?? defaultName(get().factories.length + 1), plan: emptyPlan() };
+          const f = fresh(name ?? defaultName(get().factories.length + 1));
           set((s) => ({ factories: [...s.factories, f], activeId: f.id }));
           return f.id;
         },
@@ -123,8 +140,8 @@ export const useFactoryStore = create<FactoryState>()(
             const rest = s.factories.filter((f) => f.id !== id);
             // The app always needs an active factory to edit, so deleting the last one starts a fresh one.
             if (rest.length === 0) {
-              const { factories, activeId } = initialData();
-              return { factories, activeId };
+              const f = fresh(defaultName(1));
+              return { factories: [f], activeId: f.id };
             }
             return { factories: rest, activeId: s.activeId === id ? rest[0]!.id : s.activeId };
           }),
@@ -176,15 +193,8 @@ export const useFactoryStore = create<FactoryState>()(
       partialize: ({ factories, activeId, levels }): FactoryData => ({ factories, activeId, levels }),
       // No older schema exists yet: any other version (incl. one written by a newer build) resets
       // to a clean state rather than feeding an unknown shape into the solver.
-      migrate: (persisted, version) =>
-        version === VERSION && isFactoryData(persisted) ? persisted : initialData(),
-      merge: (persisted, current) => {
-        if (!isFactoryData(persisted)) return current;
-        const activeId = persisted.factories.some((f) => f.id === persisted.activeId)
-          ? persisted.activeId
-          : persisted.factories[0]!.id;
-        return { ...current, ...persisted, activeId, levels: { ...zeroLevels(), ...persisted.levels } };
-      },
+      migrate: (persisted, version) => (version === VERSION ? (readPersisted(persisted) ?? initialData()) : initialData()),
+      merge: (persisted, current) => ({ ...current, ...(readPersisted(persisted) ?? {}) }),
     },
   ),
 );

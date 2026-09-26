@@ -18,7 +18,7 @@ export function SummaryPanel({ data, result, className }: { data: GameData; resu
       <summary className="flex cursor-pointer list-none items-center gap-5 rounded-panel px-4 py-3 [&::-webkit-details-marker]:hidden">
         <h2 className="font-display text-[1.15rem]">{t('summary.title')}</h2>
         <span className="num flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted">
-          <NumberFlip value={t.plural('machines', machineCount)} className="text-ink" />
+          <NumberFlip value={t.plural('machines', machineCount, { n: formatNumber(t.lang, machineCount, 0) })} className="text-ink" />
           <span className="text-ember">{t('unit.heat', { value: formatNumber(t.lang, result.totals.heatPerSec, 1) })}</span>
           <Coins copper={result.totals.rawMoneyPerMin} />
         </span>

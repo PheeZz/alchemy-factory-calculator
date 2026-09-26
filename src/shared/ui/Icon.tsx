@@ -18,6 +18,9 @@ const PATHS = {
   sliders: 'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M14 4v4M8 10v4M16 16v4',
   node: 'M4 4h7v7H4zM13 13h7v7h-7zM11 7.5h4.5V13',
   sum: 'M18 5H6l6 7-6 7h12',
+  download: 'M12 4v11M7 10l5 5 5-5M4 19h16',
+  upload: 'M12 20V9M7 14l5-5 5 5M4 5h16',
+  infinity: 'M7.5 15.5a3.5 3.5 0 110-7c3 0 6 7 9 7a3.5 3.5 0 100-7c-3 0-6 7-9 7z',
 } as const;
 
 export type IconName = keyof typeof PATHS;
