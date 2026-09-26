@@ -1,6 +1,8 @@
 import type { GameData } from '@/shared/data/types';
 import type { FactoryPlan, SolveResult } from '@/features/solver/types';
-import { useFactoryStore } from '@/features/factory/store';
+import { ensureBoilerFuel } from '@/features/factory/fuelActions';
+import { isSteamLike } from '@/features/factory/steam';
+import { useActivePlan, useFactoryStore } from '@/features/factory/store';
 import type { SolveErrorInfo, SolveState } from '@/features/factory/useSolve';
 import { GraphView } from '@/features/graph/GraphView';
 import { useItemOptions } from '@/features/target-picker/useItemOptions';
@@ -16,8 +18,10 @@ function ErrorCard({ data, error, mode }: { data: GameData; error: SolveErrorInf
   const t = useT();
   const name = useNames();
   const item = error.item ? name(data.items[error.item]?.nameKey ?? error.item) : '';
-  const message =
-    error.code === 'infeasible' && error.item
+  const steam = error.code === 'invalidInput' && isSteamLike(data.items[error.item ?? '']);
+  const message = steam
+    ? t('error.steamBoiler')
+    : error.code === 'infeasible' && error.item
       ? t('error.infeasibleItem', { item })
       : error.code === 'unreachable' && !error.item
         ? t('error.infeasible')
@@ -26,6 +30,9 @@ function ErrorCard({ data, error, mode }: { data: GameData; error: SolveErrorInf
   // a bounded supply in fromInput mode (where only supplies and imports feed the factory).
   const canFix = !!error.item && (error.code === 'unreachable' || error.code === 'infeasible');
   const s = useFactoryStore.getState();
+  const plan = useActivePlan();
+  // A manual recipe/machine pick is the usual culprit, so undoing all of them is always offered.
+  const hasOverrides = Object.keys(plan.recipeFor).length + Object.keys(plan.buildingFor).length > 0;
 
   return (
     <div role="alert" className="glass pointer-events-auto max-w-md rounded-panel border-danger/50 p-5">
@@ -34,15 +41,22 @@ function ErrorCard({ data, error, mode }: { data: GameData; error: SolveErrorInf
         {t('error.title')}
       </h2>
       <p className="mt-2 text-sm text-ink/90">{message}</p>
-      {canFix && (
-        <Button
-          variant="primary"
-          className="mt-4"
-          onClick={() => (mode === 'fromInput' ? s.setSupply(error.item!, SUPPLY_RATE) : s.toggleImport(error.item!))}
-        >
-          {t(mode === 'fromInput' ? 'error.addSupply' : 'error.markImport')}
-        </Button>
-      )}
+      <div className="mt-4 flex flex-wrap gap-2">
+        {canFix && (
+          <Button
+            variant="primary"
+            onClick={() => (mode === 'fromInput' ? s.setSupply(error.item!, SUPPLY_RATE) : s.toggleImport(error.item!))}
+          >
+            {t(mode === 'fromInput' ? 'error.addSupply' : 'error.markImport')}
+          </Button>
+        )}
+        {steam && (
+          <Button variant="primary" onClick={() => ensureBoilerFuel(data)}>
+            {t('error.pickBoilerFuel')}
+          </Button>
+        )}
+        {hasOverrides && <Button onClick={s.clearOverrides}>{t('overrides.resetAll')}</Button>}
+      </div>
     </div>
   );
 }

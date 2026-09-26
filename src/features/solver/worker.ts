@@ -1,6 +1,6 @@
 import type { GameData } from '@/shared/data/types';
 import type { WorkerRequest, WorkerResponse } from './client';
-import { rankFuels } from './rank-fuels';
+import { rankFuels, rankFuelVariants } from './rank-fuels';
 import { solve } from './solve';
 import { SolverError } from './types';
 
@@ -15,7 +15,11 @@ export function createWorkerHandler() {
     try {
       if (data?.build.id !== msg.buildId) throw new Error(`game data ${msg.buildId} was not posted to the worker`);
       const result =
-        msg.type === 'solve' ? await solve(data, msg.plan, msg.levels) : await rankFuels(data, msg.levels, msg.fertilizer);
+        msg.type === 'solve'
+          ? await solve(data, msg.plan, msg.levels)
+          : msg.type === 'rankFuels'
+            ? await rankFuels(data, msg.levels, msg.fertilizer)
+            : await rankFuelVariants(data, msg.levels, msg.opts);
       return { id: msg.id, ok: true, result };
     } catch (e) {
       const err = e instanceof SolverError ? e : null;

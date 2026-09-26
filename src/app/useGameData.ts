@@ -12,7 +12,7 @@ export type GameDataState =
  * Loads the current build and the locale for `lang`. A language switch keeps showing the old
  * locale until the new one arrives, so only the first load (or a retry) shows the loading screen.
  */
-export function useGameData(lang: Lang, onReady: (data: GameData) => void): GameDataState & { retry: () => void } {
+export function useGameData(lang: Lang, onReady: (data: GameData) => Promise<void>): GameDataState & { retry: () => void } {
   const [state, setState] = useState<GameDataState>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
 
@@ -20,12 +20,12 @@ export function useGameData(lang: Lang, onReady: (data: GameData) => void): Game
     let alive = true;
     loadManifest()
       .then(({ current }) => Promise.all([loadGameData(current), loadLocale(current, lang)]))
+      .then(async ([data, locale]) => {
+        await onReady(data);
+        return [data, locale] as const;
+      })
       .then(
-        ([data, locale]) => {
-          if (!alive) return;
-          onReady(data);
-          setState({ status: 'ready', data, locale });
-        },
+        ([data, locale]) => alive && setState({ status: 'ready', data, locale }),
         (error: unknown) => alive && setState({ status: 'error', error }),
       );
     return () => {

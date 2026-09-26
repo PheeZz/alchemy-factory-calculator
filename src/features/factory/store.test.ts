@@ -1,3 +1,4 @@
+import { useLangStore } from '@/shared/i18n';
 import { STORAGE_KEY, useFactoryStore } from './store';
 
 const active = () => {
@@ -76,4 +77,50 @@ test('init creates the first factory with build defaults only when none exist', 
   expect(useFactoryStore.getState().factories).toHaveLength(1);
   useFactoryStore.getState().createFactory();
   expect(active().plan.fuel).toBe('Coal');
+});
+
+test('another tab saving is picked up via the storage event; this tab keeps its active factory', async () => {
+  const mine = useFactoryStore.getState().activeId;
+  const snapshot = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
+  const other = { id: 'other-tab', name: 'Из другой вкладки', plan: snapshot.state.factories[0].plan };
+  snapshot.state.factories.push(other);
+  snapshot.state.activeId = 'other-tab';
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+
+  window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY }));
+  await vi.waitFor(() => expect(useFactoryStore.getState().factories.map((f) => f.id)).toContain('other-tab'));
+  expect(useFactoryStore.getState().activeId).toBe(mine);
+  // The next local edit now saves both factories instead of dropping the other tab's one.
+  useFactoryStore.getState().addTarget({ item: 'X', rate: 1 });
+  expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!).state.factories).toHaveLength(2);
+});
+
+test('levels are clamped at the boundary: persisted, init with track lengths, setLevels', async () => {
+  const max = { conveyor: 13, factorySpeed: 13, alchemySkill: 13, fuelEfficiency: 13, fertilizerEfficiency: 13 };
+  const raw = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
+  raw.state.levels = { conveyor: 20, factorySpeed: -2, alchemySkill: 2.6, fuelEfficiency: 'x' };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(raw));
+  await useFactoryStore.persist.rehydrate();
+  expect(useFactoryStore.getState().levels).toEqual({ conveyor: 20, factorySpeed: 0, alchemySkill: 3, fuelEfficiency: 0, fertilizerEfficiency: 0 });
+
+  useFactoryStore.getState().init({}, max);
+  expect(useFactoryStore.getState().levels.conveyor).toBe(13);
+  useFactoryStore.getState().setLevels({ factorySpeed: 99 });
+  expect(useFactoryStore.getState().levels.factorySpeed).toBe(13);
+});
+
+test('new factory names skip taken ones; clearOverrides resets recipe and machine choices', () => {
+  useLangStore.setState({ lang: 'ru' });
+  const s = useFactoryStore.getState();
+  s.renameFactory(s.activeId, 'Завод 1');
+  s.createFactory();
+  s.createFactory();
+  expect(useFactoryStore.getState().factories.map((f) => f.name)).toEqual(['Завод 1', 'Завод 2', 'Завод 3']);
+
+  s.setRecipe('Charcoal', 'Coke');
+  s.setBuilding('Coke', 'Athanor');
+  s.setFuel('Coal');
+  s.clearOverrides();
+  const plan = active().plan;
+  expect([plan.recipeFor, plan.buildingFor, plan.fuel]).toEqual([{}, {}, 'Coal']);
 });

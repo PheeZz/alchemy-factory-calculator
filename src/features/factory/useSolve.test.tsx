@@ -5,7 +5,7 @@ import { SolverError, type FactoryPlan } from '@/features/solver/types';
 import { emptyPlan } from './store';
 
 const solve = vi.fn();
-vi.mock('@/features/solver/client', () => ({ createSolverClient: () => ({ solve, dispose: vi.fn() }) }));
+vi.mock('./solverClient', () => ({ getSolverClient: () => ({ solve }) }));
 
 const { useSolve } = await import('./useSolve');
 const levels = { conveyor: 0, factorySpeed: 0, alchemySkill: 0, fuelEfficiency: 0, fertilizerEfficiency: 0 };
