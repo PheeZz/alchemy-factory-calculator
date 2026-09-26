@@ -166,7 +166,23 @@ dialog.sheet::backdrop {
   }
 }
 
+/* S tier: the page's single pulsing accent. */
+.tier-s {
+  box-shadow: 0 0 18px -2px rgb(255 181 71 / 0.75);
+  animation: tier-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes tier-pulse {
+  50% {
+    box-shadow: 0 0 28px 0 rgb(255 181 71 / 0.95);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .tier-s {
+    animation: none;
+  }
+
   .flow-dash {
     animation: none;
     stroke-dasharray: none;

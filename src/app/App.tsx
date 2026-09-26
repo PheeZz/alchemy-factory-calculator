@@ -1,9 +1,9 @@
 import { useEffect } from 'react';
 import { MotionConfig } from 'motion/react';
-import { CalculatorPage } from '@/pages/calculator/CalculatorPage';
 import { useLangStore } from '@/shared/i18n';
 import { ParticlesBackground } from '@/shared/ui/ParticlesBackground';
 import { ToastViewport } from '@/shared/ui/Toast';
+import { AppShell } from './AppShell';
 import { bootstrap } from './bootstrap';
 import { LoadErrorScreen, LoadingScreen } from './StatusScreens';
 import { useGameData } from './useGameData';
@@ -21,7 +21,7 @@ export function App() {
     <MotionConfig reducedMotion="user">
       <ParticlesBackground />
       {game.status === 'ready' ? (
-        <CalculatorPage data={game.data} locale={game.locale} />
+        <AppShell data={game.data} locale={game.locale} />
       ) : game.status === 'error' ? (
         <LoadErrorScreen error={game.error} onRetry={game.retry} />
       ) : (

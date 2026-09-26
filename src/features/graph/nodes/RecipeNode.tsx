@@ -23,6 +23,8 @@ export const RecipeNode = memo(function RecipeNode({ data: { node, loops, feeds 
   const title = outItem ? name(outItem.nameKey) : node.recipe;
   const buildingName = building ? name(building.nameKey) : node.building;
   const exact = formatNumber(t.lang, node.machinesExact, 1);
+  const heater = node.heater ? data.buildings[node.heater.building] : undefined;
+  const bName = (id: string) => name(data.buildings[id]?.nameKey ?? id);
   const util = formatPercent(node.utilization);
 
   return (
@@ -77,8 +79,38 @@ export const RecipeNode = memo(function RecipeNode({ data: { node, loops, feeds 
         <span className={node.utilization < 0.5 ? 'text-ember' : undefined}>{util}</span>
       </p>
 
-      {(node.fuel || node.fertilizer || loops.length > 0 || feeds.length > 0) && (
+      {(node.fuel || node.fertilizer || node.heater || node.heaterWarning || loops.length > 0 || feeds.length > 0) && (
       <div className="flex gap-1 overflow-hidden">
+        {node.heaterWarning && (
+          <GlowBadge
+            tone="danger"
+            glow
+            className="max-w-full min-w-0"
+            title={t('graph.heaterWarning', {
+              heater: bName(node.heaterWarning.building),
+              need: node.heaterWarning.slotsRequired,
+              has: node.heaterWarning.heatSlots,
+            })}
+          >
+            <Icon name="alert" size={11} className="shrink-0" />
+            <span className="truncate">{t('graph.heaterWarningShort', { heater: bName(node.heaterWarning.building) })}</span>
+          </GlowBadge>
+        )}
+        {node.heater && heater && (
+          <GlowBadge
+            tone="muted"
+            title={t('graph.heater', {
+              name: bName(node.heater.building),
+              count: formatNumber(t.lang, node.heater.count, 0),
+              exact: formatNumber(t.lang, node.heater.countExact, 2),
+              need: building?.heatSlotsRequired ?? 0,
+              slots: heater.heatSlots ?? 0,
+            })}
+          >
+            {formatNumber(t.lang, node.heater.count, 0)}×
+            <ItemIcon icon={heater.icon} name={bName(heater.id)} seed={heater.id} size={12} decorative />
+          </GlowBadge>
+        )}
         {node.fuel && (
           <GlowBadge tone="ember" title={t('graph.fuel', { item: itemName(node.fuel.item), rate: formatRate(t.lang, node.fuel.rate) })}>
             <Icon name="flame" size={11} />

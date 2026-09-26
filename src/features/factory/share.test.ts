@@ -1,4 +1,4 @@
-import { decodeShare, encodeShare, importShareHash } from './share';
+import { decodeShare, encodeShare, importShareHash, shareUrl } from './share';
 import { emptyPlan, useFactoryStore } from './store';
 
 const factory = {
@@ -45,4 +45,19 @@ test('a payload with the wrong shape or version is rejected', async () => {
     ok: false,
     error: 'format',
   });
+});
+
+test('heater fields survive a share round-trip; plans from before heaters still decode', () => {
+  const withHeater = { name: 'H', plan: { ...emptyPlan(), heater: 'StoneFurnace', heaterFor: { Coke: 'SteamHeater' } } };
+  expect(decodeShare(encodeShare('b', withHeater))).toEqual({ ok: true, build: 'b', factory: withHeater });
+  const { heater: _h, heaterFor: _hf, ...legacyPlan } = emptyPlan();
+  expect(decodeShare(encodeShare('b', { name: 'old', plan: legacyPlan })).ok).toBe(true);
+});
+
+test('share links keep the page path but not the ?view= switch', () => {
+  history.replaceState(null, '', '/alchemy-factory-calculator/?view=fuel');
+  const url = new URL(shareUrl('b', factory));
+  expect(url.pathname).toBe('/alchemy-factory-calculator/');
+  expect(url.search).toBe('');
+  expect(decodeShare(url.hash)).toMatchObject({ ok: true });
 });

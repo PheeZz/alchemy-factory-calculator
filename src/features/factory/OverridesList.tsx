@@ -28,17 +28,20 @@ export function OverridesList({ data }: { data: GameData }) {
       }),
       reset: () => s.setBuilding(recipe, null),
     })),
+    ...Object.entries(plan.heaterFor ?? {}).map(([recipe, building]) => ({
+      key: `h:${recipe}`,
+      text: t('overrides.building', {
+        recipe: name(data.recipes[recipe]?.nameKey ?? recipe),
+        building: name(data.buildings[building]?.nameKey ?? building),
+      }),
+      reset: () => s.setHeaterFor(recipe, null),
+    })),
   ];
   if (rows.length === 0) return null;
 
   return (
     <section className="mt-4 border-t border-line pt-3">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <h3 className="text-xs font-medium text-faint">{t('overrides.title')}</h3>
-        <button type="button" onClick={s.clearOverrides} className="text-xs text-flow hover:underline">
-          {t('overrides.resetAll')}
-        </button>
-      </div>
+      <h3 className="mb-2 text-xs font-medium text-faint">{t('overrides.title')}</h3>
       <ul className="flex flex-col gap-1">
         {rows.map((r) => (
           <li key={r.key} className="flex items-center gap-2 text-sm">
@@ -47,6 +50,9 @@ export function OverridesList({ data }: { data: GameData }) {
           </li>
         ))}
       </ul>
+      <button type="button" onClick={s.clearOverrides} className="mt-2 text-xs text-flow hover:underline">
+        {t('overrides.resetAll')}
+      </button>
     </section>
   );
 }
