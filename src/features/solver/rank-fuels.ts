@@ -118,6 +118,13 @@ function variantChoices(data: GameData, fuel: Item, max: number): { recipeFor: R
   return out;
 }
 
+// Steam can't heat its own boilers; they burn the fuel under test so the variant stays self-contained.
+function boilerFuel(data: GameData, heating: ItemId, fuel: ItemId): Record<RecipeId, ItemId> {
+  if (!data.items[heating]?.liquid) return {};
+  const boilers = Object.values(data.recipes).filter((r) => r.outputs.some((o) => o.item === heating));
+  return Object.fromEntries(boilers.map((r) => [r.id, fuel]));
+}
+
 async function evaluate(
   data: GameData,
   levels: UpgradeLevels,
@@ -140,7 +147,7 @@ async function evaluate(
         buildingFor: {},
         imports: [],
         fuel: heating,
-        fuelFor: {},
+        fuelFor: boilerFuel(data, heating, fuel.id),
         fertilizer: opts.fertilizer,
         fertilizerFor: {},
         optimize: null,
