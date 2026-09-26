@@ -1,0 +1,117 @@
+import { useCallback, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
+import type { GameData, GameLocale } from '@/shared/data/types';
+import type { SolveResult } from '@/features/solver/types';
+import { FactoryList } from '@/features/factory/FactoryList';
+import { FactorySettings } from '@/features/factory/FactorySettings';
+import { NodeInspector } from '@/features/node-inspector/NodeInspector';
+import { SummaryContent } from '@/features/summary/SummaryContent';
+import { SummaryPanel } from '@/features/summary/SummaryPanel';
+import { TargetPicker } from '@/features/target-picker/TargetPicker';
+import { UpgradesPanel } from '@/features/upgrades/UpgradesPanel';
+import { GameLocaleProvider, useT } from '@/shared/i18n';
+import { Sheet } from '@/shared/ui/Sheet';
+import { toast } from '@/shared/ui/Toast';
+import { GraphStage } from './GraphStage';
+import { Header } from './Header';
+import { MobileNav, type SheetId } from './MobileNav';
+
+export type CalculatorStatus = 'idle' | 'solving' | 'error';
+export interface SolveErrorInfo {
+  code: string;
+  item?: string;
+}
+
+interface CalculatorPageProps {
+  data: GameData;
+  locale: GameLocale;
+  result: SolveResult | null;
+  status: CalculatorStatus;
+  error?: SolveErrorInfo;
+  onShare?: () => void;
+}
+
+const isMobile = () => matchMedia('(max-width: 1023.98px)').matches;
+
+export function CalculatorPage({ data, locale, result, status, error, onShare }: CalculatorPageProps) {
+  const t = useT();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [sheet, setSheet] = useState<SheetId | null>(null);
+
+  const onSelectNode = useCallback((id: string | null) => {
+    setSelectedId(id);
+    // On phones the inspector lives in a sheet, so a tap on a node should open it right away.
+    if (id && isMobile()) setSheet('inspector');
+  }, []);
+  const closeInspector = () => setSelectedId(null);
+  const share = onShare ?? (() => toast(t('share.soon')));
+
+  const controls = (
+    <>
+      <TargetPicker data={data} />
+      <FactorySettings data={data} />
+    </>
+  );
+
+  return (
+    <GameLocaleProvider locale={locale}>
+      <div className="flex h-dvh flex-col">
+        <Header onShare={share} />
+
+        <div className="flex min-h-0 flex-1 lg:grid lg:grid-cols-[340px_minmax(0,1fr)_auto] lg:gap-3 lg:p-3">
+          <aside aria-label={t('aside.controls')} className="hidden min-h-0 flex-col gap-3 overflow-y-auto pr-1 lg:flex">
+            <FactoryList />
+            {controls}
+            <UpgradesPanel data={data} />
+          </aside>
+
+          <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+            <GraphStage
+              data={data}
+              result={result}
+              status={status}
+              error={error}
+              selectedId={selectedId}
+              onSelectNode={onSelectNode}
+            />
+            {result && <SummaryPanel data={data} result={result} className="hidden lg:block" />}
+          </main>
+
+          <AnimatePresence initial={false}>
+            {selectedId && (
+              <motion.aside
+                key="inspector"
+                aria-label={t('inspector.title')}
+                initial={{ opacity: 0, x: 24 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 24 }}
+                transition={{ duration: 0.22, ease: 'easeOut' }}
+                className="glass hidden min-h-0 w-[360px] overflow-y-auto rounded-panel p-4 lg:block"
+              >
+                <NodeInspector data={data} result={result} selectedId={selectedId} onClose={closeInspector} />
+              </motion.aside>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <MobileNav open={sheet} onOpen={setSheet} hasSelection={!!selectedId} />
+
+        <Sheet open={sheet === 'targets'} onClose={() => setSheet(null)} title={t('nav.targets')}>
+          <div className="flex flex-col gap-3">
+            <FactoryList />
+            {controls}
+          </div>
+        </Sheet>
+        <Sheet open={sheet === 'upgrades'} onClose={() => setSheet(null)} title={t('nav.upgrades')}>
+          <UpgradesPanel data={data} />
+        </Sheet>
+        <Sheet open={sheet === 'inspector'} onClose={() => setSheet(null)} title={t('nav.inspector')}>
+          <NodeInspector data={data} result={result} selectedId={selectedId} />
+        </Sheet>
+        <Sheet open={sheet === 'summary'} onClose={() => setSheet(null)} title={t('nav.summary')}>
+          {result ? <SummaryContent data={data} result={result} /> : <p className="text-sm text-muted">{t('summary.none')}</p>}
+        </Sheet>
+      </div>
+    </GameLocaleProvider>
+  );
+}
