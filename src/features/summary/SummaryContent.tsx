@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import type { GameData } from '@/shared/data/types';
 import type { SolveResult } from '@/features/solver/types';
 import { useT } from '@/shared/i18n';
-import { formatNumber, formatRate } from '@/shared/lib/format';
+import { formatNumber } from '@/shared/lib/format';
 import { CountUp } from '@/shared/ui/CountUp';
 import { Coins } from './Coins';
 import { itemRow, StackList, type SummaryRow } from './StackList';
@@ -19,21 +19,20 @@ function Block({ title, children }: { title: string; children: ReactNode }) {
 export function SummaryContent({ data, result }: { data: GameData; result: SolveResult }) {
   const t = useT();
   const { totals } = result;
-  const perMin = (v: number) => t('unit.perMin', { value: formatRate(t.lang, v) });
 
   const inputs = [
-    ...totals.raw.map((s) => itemRow(data, s.item, perMin(s.qty))),
-    ...totals.imports.map((s) => itemRow(data, s.item, perMin(s.qty), t('summary.importTag'))),
+    ...totals.raw.map((s) => itemRow(data, s.item, t.rate(s.qty))),
+    ...totals.imports.map((s) => itemRow(data, s.item, t.rate(s.qty), t('summary.importTag'))),
   ];
   const byproductIds = new Set(totals.byproducts.map((s) => s.item));
   const outputs = [
     ...totals.surplus.map((s) =>
-      itemRow(data, s.item, perMin(s.qty), byproductIds.has(s.item) ? t('summary.byproductTag') : undefined),
+      itemRow(data, s.item, t.rate(s.qty), byproductIds.has(s.item) ? t('summary.byproductTag') : undefined),
     ),
     // Byproducts fully consumed downstream have no surplus row but are still worth seeing.
     ...totals.byproducts
       .filter((b) => !totals.surplus.some((s) => s.item === b.item))
-      .map((s) => itemRow(data, s.item, perMin(s.qty), t('summary.byproductTag'))),
+      .map((s) => itemRow(data, s.item, t.rate(s.qty), t('summary.byproductTag'))),
   ];
   const machines: SummaryRow[] = totals.machines.map((m) => ({
     id: m.building,
@@ -61,9 +60,9 @@ export function SummaryContent({ data, result }: { data: GameData; result: Solve
           <dd className="justify-self-end">
             <Coins copper={totals.buildCostMoney} />
           </dd>
-          <dt className="text-muted">{t('summary.rawMoney')}</dt>
+          <dt className="text-muted">{t('summary.rawMoney', { unit: t.rateSuffix })}</dt>
           <dd className="justify-self-end">
-            <Coins copper={totals.rawMoneyPerMin} />
+            <Coins copper={t.fromPerMin(totals.rawMoneyPerMin)} />
           </dd>
           <dt className="text-muted">{t('summary.heat')}</dt>
           <dd className="justify-self-end text-ember">

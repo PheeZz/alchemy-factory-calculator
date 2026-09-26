@@ -25,6 +25,8 @@ export interface ModelRecipe {
   heater: Building | null;
   /** Catalyst items consumed per batch (already among `inputs`). */
   catalyst: Stack | null;
+  /** Upper bound on batches/min from FactoryPlan.machineCaps. */
+  maxBatches: number | null;
 }
 
 export interface ModelImport {
@@ -95,6 +97,13 @@ function withCatalyst(data: GameData, r: Recipe, item: ItemId | undefined) {
   };
 }
 
+/** Machine caps come from user input too: a negative or non-finite count is rejected, not guessed. */
+function capOf(r: Recipe, cap: number | undefined): number | null {
+  if (cap === undefined) return null;
+  if (!(cap >= 0 && Number.isFinite(cap))) throw new SolverError('invalidInput', r.outputs[0]?.item, `machine cap out of range: ${cap}`);
+  return cap;
+}
+
 /** Plans come from URLs and storage; out-of-range rates would corrupt or destabilize the LP. */
 function checkRate(item: ItemId, rate: number): number {
   if (!(rate >= 1e-6 && rate <= 1e12)) throw new SolverError('invalidInput', item, `rate out of range: ${rate}`);
@@ -152,6 +161,7 @@ export function buildModel(data: GameData, plan: FactoryPlan, mult: Multipliers)
       const yieldMult = r.yieldSkill ? mult.alchemy : 1;
       const machinesPerBatch = baseTime / (60 * speed);
       const { inputs, outputs, catalyst } = withCatalyst(data, r, plan.catalystFor?.[r.id]);
+      const cap = capOf(r, plan.machineCaps?.[r.id]);
       mr = {
         recipe: r,
         building,
@@ -165,6 +175,7 @@ export function buildModel(data: GameData, plan: FactoryPlan, mult: Multipliers)
         cost: goal === 'machines' ? machinesPerBatch : RECIPE_COST,
         burnsOwnOutput: fuel && r.inputs.length === 0 && r.outputs.some((o) => o.item === fuel.id) ? fuel.id : null,
         heater: heatPerBatch > 0 ? pickHeater(data, plan, r.id, fuel ?? null, gate.building) : null,
+        maxBatches: cap === null ? null : cap / machinesPerBatch,
       };
     }
     resolved.set(r, mr);

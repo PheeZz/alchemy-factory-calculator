@@ -1,6 +1,5 @@
 import type { GameData } from '@/shared/data/types';
 import { useNames, useT } from '@/shared/i18n';
-import { formatRate } from '@/shared/lib/format';
 import { ItemIcon } from '@/shared/ui/ItemIcon';
 import type { ItemRate } from './rates';
 
@@ -20,7 +19,7 @@ export function ItemRateList({ data, title, rates }: { data: GameData; title: st
               <span className="line-clamp-2 min-w-0 flex-1 leading-snug" title={label}>
                 {label}
               </span>
-              <span className="num text-muted">{t('unit.perMin', { value: formatRate(t.lang, r.perMin) })}</span>
+              <span className="num text-muted">{t.rate(r.perMin)}</span>
             </li>
           );
         })}

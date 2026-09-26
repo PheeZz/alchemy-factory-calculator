@@ -13,7 +13,7 @@ function TrackRow({ track, level, onLevel }: { track: UpgradeTrack; level: numbe
   const name = t(`upgrades.track.${track.id}`);
   const value = track.values[level] ?? track.values[0] ?? 1;
   const shown =
-    track.id === 'conveyor' ? t('unit.perMin', { value: formatNumber(t.lang, value, 0) }) : `×${formatNumber(t.lang, value, 2)}`;
+    track.id === 'conveyor' ? t.rate(value) : `×${formatNumber(t.lang, value, 2)}`;
   const set = (l: number) => onLevel(Math.max(0, Math.min(track.maxLevel, l)));
 
   return (

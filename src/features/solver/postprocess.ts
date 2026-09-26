@@ -2,7 +2,7 @@ import type { Building, BuildingId, GameData, ItemId, Port, Stack } from '@/shar
 import type { Multipliers } from '@/features/upgrades/multipliers';
 import type { Model, ModelRecipe } from './model';
 import { clean, type LpValues } from './build-lp';
-import type { PortWarning, SolveEdge, SolveNode, SolveResult } from './types';
+import type { Area, PortWarning, SolveEdge, SolveNode, SolveResult } from './types';
 
 const EPS = 1e-9;
 
@@ -11,6 +11,14 @@ const ceil = (v: number) => Math.ceil(v * (1 - EPS) - EPS);
 
 function sumInto(map: Map<string, number>, key: string, v: number) {
   if (v > 0) map.set(key, (map.get(key) ?? 0) + v);
+}
+
+/** Ground extent (x·y bounding box) and total grid cells of one building. */
+export function footprintOf(b: Building): Area {
+  const cells = b.footprint.cells;
+  if (cells.length === 0) return { floor: 0, cells: 0 };
+  const span = (k: 'x' | 'y') => Math.max(...cells.map((c) => c[k])) - Math.min(...cells.map((c) => c[k])) + 1;
+  return { floor: span('x') * span('y'), cells: cells.length };
 }
 
 const toStacks = (map: Map<ItemId, number>): Stack[] => [...map].map(([item, qty]) => ({ item, qty }));
@@ -48,6 +56,7 @@ export function postprocess(data: GameData, model: Model, v: LpValues, mult: Mul
   const machinesBy = new Map<BuildingId, number>();
   let buildCostMoney = 0;
   let heatPerSec = 0;
+  const area: Area = { floor: 0, cells: 0 };
 
   model.recipes.forEach((m, r) => {
     const x = v.x[r]!;
@@ -88,6 +97,14 @@ export function postprocess(data: GameData, model: Model, v: LpValues, mult: Mul
         node.heaterWarning = { building: m.heater.id, slotsRequired: m.building.heatSlotsRequired, heatSlots };
       }
     }
+    const own = footprintOf(m.building);
+    const heater = node.heater && m.heater ? footprintOf(m.heater) : null;
+    node.area = {
+      floor: heater ? heater.floor * node.heater!.count : own.floor * machines,
+      cells: own.cells * machines + (heater ? heater.cells * node.heater!.count : 0),
+    };
+    area.floor += node.area.floor;
+    area.cells += node.area.cells;
   });
 
   const edges: SolveEdge[] = [];
@@ -144,6 +161,7 @@ export function postprocess(data: GameData, model: Model, v: LpValues, mult: Mul
       rawMoneyPerMin,
       machines: [...machinesBy].map(([building, count]) => ({ building, count })),
       heatPerSec: clean(heatPerSec),
+      area,
     },
     beltSpeed,
   };
