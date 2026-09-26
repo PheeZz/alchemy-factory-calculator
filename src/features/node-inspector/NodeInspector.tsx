@@ -33,8 +33,12 @@ function Header({ icon, seed, title, subtitle, onClose }: { icon: string | null;
     <div className="flex items-center gap-3">
       <ItemIcon icon={icon} name={title} seed={seed} size={40} decorative />
       <div className="min-w-0 flex-1">
-        <h2 className="truncate font-display text-xl leading-tight">{title}</h2>
-        <p className="truncate text-sm text-muted">{subtitle}</p>
+        <h2 className="line-clamp-2 font-display text-xl leading-tight" title={title}>
+          {title}
+        </h2>
+        <p className="truncate text-sm text-muted" title={subtitle}>
+          {subtitle}
+        </p>
       </div>
       {onClose && <IconButton icon="close" size="sm" label={t('inspector.close')} onClick={onClose} />}
     </div>

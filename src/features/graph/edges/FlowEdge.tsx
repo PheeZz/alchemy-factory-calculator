@@ -14,6 +14,14 @@ export const FLOW_COLOR: Record<FlowKind, string> = {
   fertilizer: 'var(--color-verdant)',
 };
 
+// Brighter core for the moving dots so they read as light on top of the tinted trunk.
+const SPARK_COLOR: Record<FlowKind, string> = {
+  item: '#b9f6fb',
+  liquid: '#bcdcff',
+  fuel: '#ffe0ad',
+  fertilizer: '#b9f5d8',
+};
+
 export const FlowEdge = memo(function FlowEdge({
   id,
   data,
@@ -41,19 +49,23 @@ export const FlowEdge = memo(function FlowEdge({
 
   return (
     <>
-      <BaseEdge id={id} path={path} style={{ stroke: color, strokeOpacity: 0.28, strokeWidth: width + 2 }} />
+      {/* Glow is a wide translucent underlay, not a CSS filter: a filtered path is re-rasterised every
+          frame while its dashes move, which cost ~50 % of frames on a 200-edge graph. */}
+      <BaseEdge id={id} path={path} style={{ stroke: color, strokeOpacity: 0.16, strokeWidth: width + 6 }} />
+      <path d={path} fill="none" stroke={color} strokeOpacity={0.5} strokeWidth={width} className="pointer-events-none" />
+      {/* Running lights: round dots travelling at a speed ∝ log(items/min). */}
       <path
         d={path}
         fill="none"
-        stroke={color}
-        strokeWidth={width}
-        className="flow-dash pointer-events-none"
-        style={{ '--flow-dur': `${durationSec}s`, filter: `drop-shadow(0 0 3px ${color})` } as CSSProperties}
+        stroke={SPARK_COLOR[kind]}
+        strokeWidth={width + 1.6}
+        className="flow-spark pointer-events-none"
+        style={{ '--flow-dur': `${durationSec}s` } as CSSProperties}
       />
       <EdgeLabelRenderer>
         <div
           style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
-          className="nodrag nopan pointer-events-none absolute flex items-center gap-1.5 rounded-full border border-line bg-void/85 py-0.5 pr-2.5 pl-1 text-[11px] text-ink backdrop-blur"
+          className="nodrag nopan pointer-events-none absolute flex items-center gap-1.5 rounded-full border border-line bg-void/90 py-0.5 pr-2.5 pl-1 text-[11px] text-ink"
         >
           <ItemIcon icon={item?.icon ?? null} name={itemName} seed={edge.item} size={16} />
           <span className="num">

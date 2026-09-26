@@ -28,7 +28,7 @@ function EndpointShell({ kind, data, selected }: { kind: EndpointKind; data: Ite
   return (
     <div
       className={cx(
-        'glass flex h-full w-full items-center gap-2.5 py-2 pl-3 transition-shadow',
+        'glass-flat flex h-full w-full items-center gap-2.5 py-2 pl-3 transition-shadow',
         STYLE[kind].shell,
         selected && 'border-flow/80 shadow-glow-flow',
       )}
@@ -36,7 +36,9 @@ function EndpointShell({ kind, data, selected }: { kind: EndpointKind; data: Ite
       {kind !== 'import' && <Handle type="target" position={Position.Left} isConnectable={false} />}
       <ItemIcon icon={item?.icon ?? null} name={title} seed={data.item} size={28} decorative />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] leading-tight font-semibold text-ink">{title}</span>
+        <span className="block truncate text-[13px] leading-tight font-semibold text-ink" title={title}>
+          {title}
+        </span>
         <span className="num block truncate text-xs">
           <span className={STYLE[kind].label}>{t(labelKey)}</span>
           <span className="text-muted"> · {t('unit.perMin', { value: formatRate(t.lang, data.perMin) })}</span>

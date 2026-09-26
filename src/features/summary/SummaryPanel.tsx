@@ -4,7 +4,7 @@ import { useT } from '@/shared/i18n';
 import { cx } from '@/shared/lib/cx';
 import { formatNumber } from '@/shared/lib/format';
 import { Icon } from '@/shared/ui/Icon';
-import { NumberFlip } from '@/shared/ui/NumberFlip';
+import { CountUp } from '@/shared/ui/CountUp';
 import { Coins } from './Coins';
 import { SummaryContent } from './SummaryContent';
 
@@ -18,8 +18,16 @@ export function SummaryPanel({ data, result, className }: { data: GameData; resu
       <summary className="flex cursor-pointer list-none items-center gap-5 rounded-panel px-4 py-3 [&::-webkit-details-marker]:hidden">
         <h2 className="font-display text-[1.15rem]">{t('summary.title')}</h2>
         <span className="num flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted">
-          <NumberFlip value={t.plural('machines', machineCount, { n: formatNumber(t.lang, machineCount, 0) })} className="text-ink" />
-          <span className="text-ember">{t('unit.heat', { value: formatNumber(t.lang, result.totals.heatPerSec, 1) })}</span>
+          <CountUp
+            value={machineCount}
+            className="text-ink"
+            format={(n) => t.plural('machines', Math.round(n), { n: formatNumber(t.lang, Math.round(n), 0) })}
+          />
+          <CountUp
+            value={result.totals.heatPerSec}
+            className="text-ember"
+            format={(n) => t('unit.heat', { value: formatNumber(t.lang, n, 1) })}
+          />
           <Coins copper={result.totals.rawMoneyPerMin} />
         </span>
         <Icon name="chevron" className="ml-auto text-muted transition-transform group-open:rotate-180" />

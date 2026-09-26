@@ -3,7 +3,7 @@ import type { GameData } from '@/shared/data/types';
 import type { SolveResult } from '@/features/solver/types';
 import { useT } from '@/shared/i18n';
 import { formatNumber, formatRate } from '@/shared/lib/format';
-import { NumberFlip } from '@/shared/ui/NumberFlip';
+import { CountUp } from '@/shared/ui/CountUp';
 import { Coins } from './Coins';
 import { itemRow, StackList, type SummaryRow } from './StackList';
 
@@ -67,7 +67,7 @@ export function SummaryContent({ data, result }: { data: GameData; result: Solve
           </dd>
           <dt className="text-muted">{t('summary.heat')}</dt>
           <dd className="justify-self-end text-ember">
-            <NumberFlip value={t('unit.heat', { value: formatNumber(t.lang, totals.heatPerSec, 1) })} />
+            <CountUp value={totals.heatPerSec} format={(n) => t('unit.heat', { value: formatNumber(t.lang, n, 1) })} />
           </dd>
         </dl>
         <StackList rows={buildCost} />

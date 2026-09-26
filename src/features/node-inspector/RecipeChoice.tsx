@@ -83,7 +83,9 @@ export function RecipeChoice({
               key={r.id}
               className={cx(
                 'block cursor-pointer rounded-xl border p-3 transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-flow',
-                checked ? 'border-arcane/70 bg-arcane/12' : 'border-line hover:border-white/25 hover:bg-white/[0.03]',
+                checked
+                  ? 'border-arcane/70 bg-arcane/12 shadow-[0_0_22px_-10px_var(--color-arcane)]'
+                  : 'border-line hover:border-flow/40 hover:bg-white/[0.03] hover:shadow-[0_0_18px_-10px_var(--color-flow)]',
               )}
             >
               <input type="radio" name={group} value={r.id} checked={checked} onChange={() => {
@@ -91,8 +93,11 @@ export function RecipeChoice({
                   // Node ids are recipe ids: follow the node so the inspector does not close on the swap.
                   onSelect(r.id, item);
                 }} className="sr-only" />
-              <span className="mb-2 flex items-center justify-between gap-2">
-                <span className="truncate text-sm font-medium text-ink">{title(r)}</span>
+              <span className="mb-2 flex items-start justify-between gap-2">
+                {/* Two lines, not an ellipsis: long Russian names (and Paradox input lists) must read whole. */}
+                <span className="line-clamp-2 text-sm leading-snug font-medium text-ink" title={title(r)}>
+                  {title(r)}
+                </span>
                 <span className="num shrink-0 text-xs text-faint">
                   {i === 0 && r.id === recipes[0]?.id && query === '' ? `${t('inspector.default')} · ` : ''}
                   {t('inspector.perBatch', { time: formatNumber(t.lang, r.timeSec, 1) })}

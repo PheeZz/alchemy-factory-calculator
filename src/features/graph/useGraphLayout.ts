@@ -8,7 +8,7 @@ import { toast } from '@/shared/ui/Toast';
 
 /** Positioned elements for a result; stale layouts are dropped when a newer result arrives. */
 export function useGraphLayout(data: GameData, result: SolveResult | null, getView: () => { width: number; height: number }) {
-  const [graph, setGraph] = useState<{ nodes: GraphNode[]; edges: GraphEdge[] } | null>(null);
+  const [graph, setGraph] = useState<{ nodes: GraphNode[]; edges: GraphEdge[]; for: SolveResult } | null>(null);
 
   useEffect(() => {
     if (!result) return setGraph(null);
@@ -17,7 +17,7 @@ export function useGraphLayout(data: GameData, result: SolveResult | null, getVi
     layoutForView(nodes, edges, labelWidth, getView()).then(({ nodes: laid, routes, fallback }) => {
       if (!alive) return;
       if (fallback) toast(translate(useLangStore.getState().lang, 'graph.layoutFallback'), 'error');
-      setGraph({ nodes: laid, edges: edges.map((e) => ({ ...e, data: { ...e.data!, route: routes.get(e.id) } })) });
+      setGraph({ nodes: laid, edges: edges.map((e) => ({ ...e, data: { ...e.data!, route: routes.get(e.id) } })), for: result });
     });
     return () => {
       alive = false;
@@ -25,5 +25,6 @@ export function useGraphLayout(data: GameData, result: SolveResult | null, getVi
     // getView is read at layout time only; a resize does not re-run a layout.
   }, [data, result]);
 
-  return graph;
+  // The previous layout stays on screen until the new one lands; `pending` tells the view to show progress.
+  return { graph, pending: !!result && graph?.for !== result };
 }
