@@ -1,14 +1,19 @@
 import type { GameData, ItemId } from '@/shared/data/types';
 import type { FuelRank, FuelVariant, FuelVariantOptions } from './rank-fuels';
+import type { ProfitVariant, ProfitVariantOptions } from './rank-profit';
+import type { PlanSummary, UpgradeImpact } from './upgrade-impact';
 import { SolverError, type FactoryPlan, type SolveResult, type SolverErrorCode, type UpgradeLevels } from './types';
 
 /** Jobs the worker runs against the cached GameData. */
 export type WorkerJob =
   | { type: 'solve'; plan: FactoryPlan; levels: UpgradeLevels }
   | { type: 'rankFuels'; levels: UpgradeLevels; fertilizer: ItemId | null }
-  | { type: 'rankFuelVariants'; levels: UpgradeLevels; opts: FuelVariantOptions };
+  | { type: 'rankFuelVariants'; levels: UpgradeLevels; opts: FuelVariantOptions }
+  | { type: 'rankProfitVariants'; levels: UpgradeLevels; opts: ProfitVariantOptions }
+  | { type: 'upgradeImpact'; plan: FactoryPlan; levels: UpgradeLevels };
 
-export type WorkerResult = SolveResult | FuelRank[] | FuelVariant[];
+export type UpgradeImpactResult = { before: PlanSummary; impacts: UpgradeImpact[] };
+export type WorkerResult = SolveResult | FuelRank[] | FuelVariant[] | ProfitVariant[] | UpgradeImpactResult;
 
 export type WorkerRequest = { type: 'data'; data: GameData } | (WorkerJob & { id: number; buildId: string });
 
@@ -91,6 +96,10 @@ export function createSolverClient(
       run(data, { type: 'rankFuels', levels, fertilizer }) as Promise<FuelRank[]>,
     rankFuelVariants: (data: GameData, levels: UpgradeLevels, opts: FuelVariantOptions) =>
       run(data, { type: 'rankFuelVariants', levels, opts }) as Promise<FuelVariant[]>,
+    rankProfitVariants: (data: GameData, levels: UpgradeLevels, opts: ProfitVariantOptions) =>
+      run(data, { type: 'rankProfitVariants', levels, opts }) as Promise<ProfitVariant[]>,
+    upgradeImpact: (data: GameData, plan: FactoryPlan, levels: UpgradeLevels) =>
+      run(data, { type: 'upgradeImpact', plan, levels }) as Promise<UpgradeImpactResult>,
     dispose() {
       reset();
       failAll(new SolverError('internal', undefined, 'solver disposed'));

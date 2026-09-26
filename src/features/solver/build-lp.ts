@@ -69,6 +69,9 @@ export function buildLp(model: Model, goal: LpGoal): string {
     }
   });
   if (goal.kind === 'cost') model.recipes.forEach((m, r) => objective.push([m.cost, col.x(r)]));
+  model.recipes.forEach((m, r) => {
+    if (m.maxBatches !== null) bounds.push(` ${col.x(r)} <= ${m.maxBatches}`);
+  });
   if (goal.kind === 'maximize') objective.push([1, col.out]);
 
   const constraints = rows.map((terms, k) => ` b${k}: ${expr(terms)} = ${model.targets.get(model.items[k]!) ?? 0}`);

@@ -40,6 +40,8 @@ export interface RawItem {
   CauldronCost: number;
   IsLiquid: boolean;
   AllowPortalSupply: boolean;
+  /** EEnemySellType::…; absent in hand-written test rows. */
+  SellType?: string;
 }
 
 export interface RawRecipe {

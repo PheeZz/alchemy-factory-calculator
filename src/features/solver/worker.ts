@@ -1,8 +1,25 @@
 import type { GameData } from '@/shared/data/types';
-import type { WorkerRequest, WorkerResponse } from './client';
+import type { WorkerJob, WorkerRequest, WorkerResponse } from './client';
 import { rankFuels, rankFuelVariants } from './rank-fuels';
+import { rankProfitVariants } from './rank-profit';
+import { upgradeImpact } from './upgrade-impact';
 import { solve } from './solve';
 import { SolverError } from './types';
+
+function run(data: GameData, job: WorkerJob) {
+  switch (job.type) {
+    case 'solve':
+      return solve(data, job.plan, job.levels);
+    case 'rankFuels':
+      return rankFuels(data, job.levels, job.fertilizer);
+    case 'rankFuelVariants':
+      return rankFuelVariants(data, job.levels, job.opts);
+    case 'rankProfitVariants':
+      return rankProfitVariants(data, job.levels, job.opts);
+    case 'upgradeImpact':
+      return upgradeImpact(data, job.plan, job.levels);
+  }
+}
 
 /** Message handler with its own GameData cache; exported so tests can drive it without a real Worker. */
 export function createWorkerHandler() {
@@ -14,12 +31,7 @@ export function createWorkerHandler() {
     }
     try {
       if (data?.build.id !== msg.buildId) throw new Error(`game data ${msg.buildId} was not posted to the worker`);
-      const result =
-        msg.type === 'solve'
-          ? await solve(data, msg.plan, msg.levels)
-          : msg.type === 'rankFuels'
-            ? await rankFuels(data, msg.levels, msg.fertilizer)
-            : await rankFuelVariants(data, msg.levels, msg.opts);
+      const result = await run(data, msg);
       return { id: msg.id, ok: true, result };
     } catch (e) {
       const err = e instanceof SolverError ? e : null;

@@ -34,7 +34,11 @@ export interface Item {
   tags: string[];
   /** Not produced by any non-special recipe. */
   raw: boolean;
+  /** Shop category it sells in; null = cannot be sold (DT SellType Worthless). */
+  sellType?: SellType | null;
 }
+
+export type SellType = 'groceries' | 'remedies' | 'jewelry' | 'liquid' | 'artcrafts';
 
 export type RecipeSpecial = 'cauldron' | 'catalyst' | 'seedPlot' | 'steam' | 'portal';
 
