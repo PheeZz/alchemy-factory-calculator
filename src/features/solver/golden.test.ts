@@ -165,6 +165,63 @@ describe('golden: real data', () => {
   });
 });
 
+describe('golden: late game (Crown)', () => {
+  // Crown: 3 GoldIngot + 1 Ruby + 1 Sapphire → 1 (Omni-Machine, 15 s); Ruby/Sapphire come only from
+  // special cauldron rows, so they are raw imports. At 0.1 Crown/min, hybrid defaults:
+  //   GoldIngot 0.3 ← GoldDust5 0.3 ← 2 GoldDust3 = 0.6/min.
+  //   GoldDust3 (Adv. Athanor): 1 SilverPowder3 + 1 VolcanicAsh + 18 Mercury → 0.1 GD3 + 0.3 GD2 + 0.6 GD
+  //     → x = 6: SP3 6, VolcanicAsh 6, Mercury 108; GD2 1.8 and GD 3.6 left over. (starfi5h "Gold Dust":
+  //     10 + 10 + 180 → 1 + 3 + 6, same row ×10.) This 10 % yield multiplies everything upstream by 10.
+  //   Mercury (Adv. Alembic, yield): 1 SilverPowder + 1 Vitae + 80 SulfuricAcid → 10 → x = 10.8.
+  //   SilverPowder3: 4 CopperPowder2 + 2 BlackPowder → 0.2 SP3 + 0.8 SP → x = 30 (SP side 24, 13.2 spare).
+  //   CopperPowder2: 6 IronSand + 6 SoapPowder → 0.5 CP2 + 0.5 CP → x = 240 → IronSand 1440/min;
+  //     IronSand is a 30 s grind → 1440·30/60 = 720 grinders.
+  //   VolcanicAsh 6 ← Obsidian 6: 2 Mors + 1 Crystal1 → 0.5 Obsidian + 0.5 Marble → x = 12 → Crystal1 12.
+  //   Crystal1 ← 2 Shard3 ← … ← 2^10 Sand (7 Sand refinings, starfi5h "Refined Sand" 128 → 1 Shard1):
+  //     12·1024 = 12288 Sand, Sand2 x = 6144; the Salt row's side Sand covers 1555.2, grinders make
+  //     the other 10732.8 at 12 s → 2146.6 grinders — the single biggest node.
+  //   Salt: SulfuricAcid 864/min = 43.2 batches → 2592 SaltWater → 129.6 Salt → x = 129.6/0.333333 = 388.8.
+  //   Quicklime 4575.2 = BasicFertilizer 2720 + Salt 4·388.8 + Limewater 9000/30.
+  //   BasicFertilizer 2720 feeds Sage (PlantAsh for Soap + the fertilizer itself) and Flax (LinseedOil for Soap).
+  //   Iron: SulfurPowder 103.2 (BlackPowder 60 + SulfuricAcid 43.2) → Sulfur x = 103.2/40 = 2.58 (Pyrite),
+  //     whose side 2.58·120 = 309.6 IronIngot covers part of IronSand's 1440; smelters make the other
+  //     1130.4 from Iron Ore (x = 11.304 → 113.04 smelters). Hybrid weighs imports by value, so it does
+  //     not burn 11 000-copper Pyrite for the side ingots (Iron Ore is 1 200) — no Sulfur surplus.
+  // Total ≈ 7709 machines at 0.1/min, i.e. 4.63 M at 60/min: arithmetic, not a bug. The waste is in
+  // the default recipes (GD/GD2 side products not refined up, Shard1 from sand rather than Quartz).
+  const crown = [{ item: 'Crown', rate: 0.1 }];
+
+  it('hybrid chain matches the hand derivation', async () => {
+    const res = await run(crown);
+    expect(node(res, 'GoldDust3').batchesPerMin).toBeCloseTo(6, 9);
+    expect(node(res, 'Mercury').batchesPerMin).toBeCloseTo(10.8, 9);
+    expect(node(res, 'SilverPowder3').batchesPerMin).toBeCloseTo(30, 9);
+    expect(node(res, 'CopperPowder2').batchesPerMin).toBeCloseTo(240, 9);
+    expect(node(res, 'IronSand').machinesExact).toBeCloseTo(720, 9);
+    expect(node(res, 'Obsidian').batchesPerMin).toBeCloseTo(12, 9);
+    expect(node(res, 'Sand2').batchesPerMin).toBeCloseTo(6144, 9);
+    expect(node(res, 'Salt').batchesPerMin).toBeCloseTo(129.6 / 0.333333, 6);
+    expect(node(res, 'Sand').machinesExact).toBeCloseTo(((12288 - (4 * 129.6) / 0.333333) * 12) / 60, 6);
+    expect(node(res, 'BasicFertilizer').batchesPerMin).toBeCloseTo(2720, 3);
+    expect(node(res, 'Sulfur').batchesPerMin).toBeCloseTo(2.58, 9);
+    expect(node(res, 'IronIngot').batchesPerMin).toBeCloseTo(11.304, 9);
+    expect(raw(res, 'Pyrite')).toBeCloseTo(2.58, 9);
+    expect(raw(res, 'IronOre')).toBeCloseTo(11.304, 9);
+    const surplus = (item: string) => res.totals.surplus.find((s) => s.item === item)?.qty ?? 0;
+    expect(surplus('GoldDust2')).toBeCloseTo(1.8, 9);
+    expect(surplus('GoldDust')).toBeCloseTo(3.6, 9);
+    expect(surplus('Sulfur')).toBe(0);
+    const total = res.nodes.reduce((s, n) => s + n.machinesExact, 0);
+    expect(total).toBeCloseTo(7708.8, 0);
+  });
+
+  it('optimize machines finds a chain an order of magnitude smaller', async () => {
+    const hybrid = (await run(crown)).nodes.reduce((s, n) => s + n.machinesExact, 0);
+    const optimized = (await run(crown, { optimize: 'machines' })).nodes.reduce((s, n) => s + n.machinesExact, 0);
+    expect(optimized).toBeLessThan(hybrid / 10);
+  });
+});
+
 /** Items that cannot be solved yet; keep explicit so the list only shrinks. */
 const KNOWN_INFEASIBLE: string[] = [];
 

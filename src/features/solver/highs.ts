@@ -1,4 +1,4 @@
-import highsLoader, { type Highs } from 'highs';
+import type { Highs } from 'highs';
 import wasmUrl from 'highs/runtime?url';
 import { SolverError } from './types';
 
@@ -7,10 +7,13 @@ let loading: Promise<Highs> | undefined;
 function loadHighs(): Promise<Highs> {
   // Node (vitest) finds highs.wasm next to the loader; bundled code must be pointed at the asset Vite emitted.
   const inNode = typeof process !== 'undefined' && process.versions?.node !== undefined;
-  loading ??= highsLoader(inNode ? {} : { locateFile: () => wasmUrl }).catch((e: unknown) => {
-    loading = undefined;
-    throw e;
-  });
+  // Dynamic import keeps the ~160 KB loader out of any chunk that merely imports the solver API.
+  loading ??= import('highs')
+    .then(({ default: highsLoader }) => highsLoader(inNode ? {} : { locateFile: () => wasmUrl }))
+    .catch((e: unknown) => {
+      loading = undefined;
+      throw e;
+    });
   return loading;
 }
 

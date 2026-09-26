@@ -36,7 +36,7 @@ export interface Model {
   depth: Map<ItemId, number>;
 }
 
-/** Tie-breakers, small against a weight of 1 per imported item yet above HiGHS' 1e-7 tolerances. */
+/** Tie-breakers, small against import weights (≥ 1 per item) yet above HiGHS' 1e-7 tolerances. */
 export const SURPLUS_COST = 1e-4;
 const RECIPE_COST = 1e-6;
 const MACHINES_IMPORT_COST = 1e-3;
@@ -44,8 +44,10 @@ const MACHINES_IMPORT_COST = 1e-3;
 function importCost(item: Item, goal: FactoryPlan['optimize']): number {
   if (goal === 'money') return item.buyPrice ?? item.value;
   if (goal === 'machines') return MACHINES_IMPORT_COST;
-  // ponytail: raw/hybrid weight every imported item as 1 (count of items), value-weighting is what 'money' is for
-  return 1;
+  if (goal === 'raw') return 1;
+  // Hybrid: by value, so a byproduct route never swaps a cheap raw for a pricier one just because
+  // it needs fewer items (Pyrite vs Iron Ore). Floor 1: worthless raws still cost something.
+  return Math.max(item.buyPrice ?? item.value, 1);
 }
 
 /** Main output first, then side output; non-alternates before alternates; id breaks ties. */
