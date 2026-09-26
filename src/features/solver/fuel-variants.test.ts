@@ -136,4 +136,11 @@ describe('rankFuelVariants (real data)', () => {
         .join('\n');
     console.info(`rankFuelVariants self (${ms.toFixed(0)} ms)\n${table(self)}\n\nheating=Coal\n${table(coal)}`);
   });
+
+  it('heating with steam: boilers burn the fuel under test, so heated paths still rank', async () => {
+    const steam = await rankFuelVariants(data, level0, { fertilizer: 'BasicFertilizer', heating: 'Steam' });
+    const coke = steam.find((v) => v.fuel === 'Coke' && v.path.join('>') === 'Coke_Alt');
+    expect(coke).toBeDefined();
+    expect(coke!.raw.some((s) => s.item === 'CoalOre')).toBe(true);
+  });
 });

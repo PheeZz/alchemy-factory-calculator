@@ -39,6 +39,8 @@ interface FactoryActions {
   removeSupply: (item: ItemId) => void;
   setMaximize: (item: ItemId | null) => void;
   setRecipe: (item: ItemId, recipe: RecipeId | null) => void;
+  /** Adds several recipe choices at once (a fuel path from the tier list); existing other choices stay. */
+  mergeRecipes: (recipeFor: Record<ItemId, RecipeId>) => void;
   setBuilding: (recipe: RecipeId, building: BuildingId | null) => void;
   toggleImport: (item: ItemId) => void;
   setFuel: (item: ItemId | null) => void;
@@ -46,6 +48,8 @@ interface FactoryActions {
   setFertilizer: (item: ItemId | null) => void;
   setFertilizerFor: (recipe: RecipeId, item: ItemId | null) => void;
   setOptimize: (goal: OptimizeGoal | null) => void;
+  setHeater: (building: BuildingId | null) => void;
+  setHeaterFor: (recipe: RecipeId, building: BuildingId | null) => void;
   /** Levels are clamped here, the one seam every writer (UI, file import) goes through. */
   setLevels: (levels: Partial<UpgradeLevels>) => void;
   /** Drops manual recipe and machine choices of the active factory (the "undo" for an unsolvable pick). */
@@ -72,6 +76,8 @@ export function emptyPlan(): FactoryPlan {
     fertilizer: null,
     fertilizerFor: {},
     optimize: null,
+    heater: null,
+    heaterFor: {},
   };
 }
 
@@ -200,6 +206,7 @@ export const useFactoryStore = create<FactoryState>()(
         removeSupply: (item) => patchPlan((p) => ({ supplies: p.supplies.filter((s) => s.item !== item) })),
         setMaximize: (maximize) => patchPlan(() => ({ maximize })),
         setRecipe: (item, recipe) => patchPlan((p) => ({ recipeFor: withKey(p.recipeFor, item, recipe) })),
+        mergeRecipes: (recipeFor) => patchPlan((p) => ({ recipeFor: { ...p.recipeFor, ...recipeFor } })),
         setBuilding: (recipe, building) =>
           patchPlan((p) => ({ buildingFor: withKey(p.buildingFor, recipe, building) })),
         toggleImport: (item) =>
@@ -212,8 +219,10 @@ export const useFactoryStore = create<FactoryState>()(
         setFertilizerFor: (recipe, item) =>
           patchPlan((p) => ({ fertilizerFor: withKey(p.fertilizerFor, recipe, item) })),
         setOptimize: (optimize) => patchPlan(() => ({ optimize })),
+        setHeater: (heater) => patchPlan(() => ({ heater })),
+        setHeaterFor: (recipe, building) => patchPlan((p) => ({ heaterFor: withKey(p.heaterFor ?? {}, recipe, building) })),
         setLevels: (levels) => set((s) => ({ levels: clampLevels({ ...s.levels, ...levels }, s.maxLevels) })),
-        clearOverrides: () => patchPlan(() => ({ recipeFor: {}, buildingFor: {} })),
+        clearOverrides: () => patchPlan(() => ({ recipeFor: {}, buildingFor: {}, heaterFor: {} })),
       };
     },
     {

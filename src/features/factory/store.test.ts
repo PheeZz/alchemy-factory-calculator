@@ -124,3 +124,16 @@ test('new factory names skip taken ones; clearOverrides resets recipe and machin
   const plan = active().plan;
   expect([plan.recipeFor, plan.buildingFor, plan.fuel]).toEqual([{}, {}, 'Coal']);
 });
+
+test('heater actions set and reset plan-wide and per-node heaters; clearOverrides drops node heaters too', () => {
+  const s = useFactoryStore.getState();
+  s.setHeater('StoneFurnace');
+  s.setHeaterFor('Coke', 'SteamHeater');
+  expect([active().plan.heater, active().plan.heaterFor]).toEqual(['StoneFurnace', { Coke: 'SteamHeater' }]);
+  s.setHeaterFor('Coke', null);
+  s.setHeater(null);
+  expect([active().plan.heater, active().plan.heaterFor]).toEqual([null, {}]);
+  s.setHeaterFor('Coke', 'SteamHeater');
+  s.clearOverrides();
+  expect(active().plan.heaterFor).toEqual({});
+});

@@ -29,6 +29,8 @@ export function sanitizePlan(data: GameData, plan: FactoryPlan): { plan: Factory
     fuelFor: pickKeys(plan.fuelFor, (r, i) => recipe(r) && item(i)),
     fertilizer: optItem(plan.fertilizer),
     fertilizerFor: pickKeys(plan.fertilizerFor, (r, i) => recipe(r) && item(i)),
+    heater: plan.heater && building(plan.heater) ? plan.heater : null,
+    heaterFor: pickKeys(plan.heaterFor ?? {}, (r, b) => recipe(r) && building(b)),
   };
   return { plan: clean, unknown: [...unknown].sort() };
 }

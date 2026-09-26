@@ -32,7 +32,8 @@ function ErrorCard({ data, error, mode }: { data: GameData; error: SolveErrorInf
   const s = useFactoryStore.getState();
   const plan = useActivePlan();
   // A manual recipe/machine pick is the usual culprit, so undoing all of them is always offered.
-  const hasOverrides = Object.keys(plan.recipeFor).length + Object.keys(plan.buildingFor).length > 0;
+  const hasOverrides =
+    Object.keys(plan.recipeFor).length + Object.keys(plan.buildingFor).length + Object.keys(plan.heaterFor ?? {}).length > 0;
 
   return (
     <div role="alert" className="glass pointer-events-auto max-w-md rounded-panel border-danger/50 p-5">

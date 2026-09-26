@@ -44,8 +44,13 @@ export function importShareHash(hash: string): ShareDecode {
   return decoded;
 }
 
-export const shareUrl = (build: string, factory: FactoryDraft) =>
-  `${location.origin}${location.pathname}${location.search}${encodeShare(build, factory)}`;
+/** Link to the current page; the view switch is dropped so a shared factory opens in the calculator. */
+export function shareUrl(build: string, factory: FactoryDraft) {
+  const url = new URL(location.href);
+  url.searchParams.delete('view');
+  url.hash = encodeShare(build, factory);
+  return url.toString();
+}
 
 /** Resolves false when the clipboard is unavailable (insecure origin, denied permission). */
 export async function copyShareLink(build: string, factory: FactoryDraft): Promise<boolean> {

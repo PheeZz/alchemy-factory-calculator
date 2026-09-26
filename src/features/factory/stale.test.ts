@@ -55,3 +55,15 @@ test('prototype keys are not mistaken for known ids', () => {
   expect(clean.recipeFor).toEqual({});
   expect(unknown).toEqual(['__proto__', 'constructor', 'hasOwnProperty', 'toString'].sort());
 });
+
+test('heater choices: unknown heater buildings and heaterFor entries are dropped like fuelFor', () => {
+  const plan = {
+    ...emptyPlan(),
+    heater: 'GoneHeater',
+    heaterFor: { IronIngot: 'Kiln', GoneRecipe: 'Kiln', Elixir: 'GoneHeater' },
+  };
+  const { plan: clean, unknown } = sanitizePlan(demoGameData, plan);
+  expect(clean.heater).toBeNull();
+  expect(clean.heaterFor).toEqual({ IronIngot: 'Kiln' });
+  expect(unknown).toEqual(['GoneHeater', 'GoneRecipe']);
+});

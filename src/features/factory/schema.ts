@@ -27,7 +27,10 @@ export function isPlan(v: unknown): v is FactoryPlan {
     isStrMap(v.fuelFor) &&
     isStrOrNull(v.fertilizer) &&
     isStrMap(v.fertilizerFor) &&
-    (v.optimize === null || v.optimize === 'raw' || v.optimize === 'machines' || v.optimize === 'money')
+    (v.optimize === null || v.optimize === 'raw' || v.optimize === 'machines' || v.optimize === 'money') &&
+    // Optional: plans saved before heaters existed have neither field.
+    (v.heater === undefined || isStrOrNull(v.heater)) &&
+    (v.heaterFor === undefined || isStrMap(v.heaterFor))
   );
 }
 

@@ -52,3 +52,15 @@ export const upgradeValue = (data: GameData, id: GameData['upgrades'][number]['i
   const track = data.upgrades.find((u) => u.id === id);
   return track?.values[Math.min(level, track.maxLevel)] ?? 1;
 };
+
+/** Buildings that heat other machines (Stone Stove, Furnace, Steam Heater Pad). */
+export const heaterBuildings = (data: GameData) => Object.values(data.buildings).filter((b) => (b.heatSlots ?? 0) > 0);
+
+/**
+ * Same compatibility rule as the solver's heater pick: liquid fuel (steam) enters through pipe ports,
+ * solid fuel through belt ports. No fuel known → any heater.
+ */
+export const heatersFor = (data: GameData, fuel: ItemId | null | undefined) => {
+  const f = fuel ? data.items[fuel] : undefined;
+  return heaterBuildings(data).filter((b) => !f || b.ports.some((p) => p.pipe === f.liquid && p.dir !== 'out'));
+};
