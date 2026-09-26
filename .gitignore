@@ -1,0 +1,11 @@
+# game assets & raw dumps: copyrighted, never commit — only normalized derived data goes to git
+research/game-files/
+research/extracted/
+research/raw/
+tools/extractor/bin/
+tools/extractor/obj/
+node_modules/
+dist/
+*.tsbuildinfo
+.DS_Store
+tools/extractor/*.so

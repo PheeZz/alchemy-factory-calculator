@@ -1,0 +1,96 @@
+import type { BuildingId, ItemId, RecipeId, Stack, UpgradeTrackId } from '@/shared/data/types';
+
+export interface Rate {
+  item: ItemId;
+  /** Items per minute. */
+  rate: number;
+}
+
+export type OptimizeGoal = 'raw' | 'machines' | 'money';
+
+export interface FactoryPlan {
+  targets: Rate[];
+  mode: 'targets' | 'fromInput';
+  /** fromInput: available inputs, items/min (upper bounds on import). */
+  supplies: Rate[];
+  /** fromInput: item to maximize. */
+  maximize: ItemId | null;
+  /** Manual recipe choice per item; absent → the item's default recipe. */
+  recipeFor: Record<ItemId, RecipeId>;
+  /** Manual building choice per recipe; absent → recipe.buildings[0]. */
+  buildingFor: Record<RecipeId, BuildingId>;
+  /** Items supplied from outside (their subtree is hidden). */
+  imports: ItemId[];
+  fuel: ItemId | null;
+  fuelFor: Record<RecipeId, ItemId>;
+  fertilizer: ItemId | null;
+  fertilizerFor: Record<RecipeId, ItemId>;
+  /** null = hybrid mode: manual choices, LP only balances flows. */
+  optimize: OptimizeGoal | null;
+}
+
+export type UpgradeLevels = Record<UpgradeTrackId, number>;
+
+export interface PortWarning {
+  item: ItemId;
+  /** Required items/min through one port of one machine. */
+  perMachine: number;
+  beltSpeed: number;
+}
+
+export interface SolveNode {
+  id: string;
+  recipe: RecipeId;
+  building: BuildingId;
+  batchesPerMin: number;
+  machinesExact: number;
+  /** ceil(machinesExact). */
+  machines: number;
+  /** machinesExact / machines, 0..1. */
+  utilization: number;
+  fuel?: Rate;
+  fertilizer?: Rate;
+  portWarnings: PortWarning[];
+}
+
+/** Edge endpoints: a node id, or `import:<item>`, `target:<item>`, `surplus:<item>`. */
+export interface SolveEdge {
+  from: string;
+  to: string;
+  item: ItemId;
+  perMin: number;
+  /** ceil(perMin / beltSpeed). */
+  belts: number;
+}
+
+export interface SolveTotals {
+  raw: Stack[];
+  imports: Stack[];
+  surplus: Stack[];
+  byproducts: Stack[];
+  buildCost: Stack[];
+  buildCostMoney: number;
+  rawMoneyPerMin: number;
+  machines: { building: BuildingId; count: number }[];
+  heatPerSec: number;
+}
+
+export interface SolveResult {
+  nodes: SolveNode[];
+  edges: SolveEdge[];
+  totals: SolveTotals;
+  beltSpeed: number;
+}
+
+export type SolverErrorCode = 'unreachable' | 'infeasible' | 'unbounded' | 'timeout';
+
+export class SolverError extends Error {
+  constructor(
+    readonly code: SolverErrorCode,
+    readonly item?: ItemId,
+    message?: string,
+  ) {
+    super(message ?? `${code}${item ? `: ${item}` : ''}`);
+    this.name = 'SolverError';
+  }
+}
