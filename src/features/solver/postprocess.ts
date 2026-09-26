@@ -73,6 +73,20 @@ export function postprocess(data: GameData, model: Model, v: LpValues, mult: Mul
     buildCostMoney += m.building.buildCostMoney * machines;
     sumInto(machinesBy, m.building.id, machines);
     for (const s of m.building.buildCost) sumInto(buildCost, s.item, s.qty * machines);
+
+    if (m.heater) {
+      const heatSlots = m.heater.heatSlots ?? 0;
+      const perHeater = Math.floor(heatSlots / Math.max(m.building.heatSlotsRequired, 1));
+      if (perHeater > 0) {
+        const count = Math.ceil(machines / perHeater);
+        node.heater = { building: m.heater.id, countExact: machinesExact / perHeater, count };
+        sumInto(machinesBy, m.heater.id, count);
+        buildCostMoney += m.heater.buildCostMoney * count;
+        for (const s of m.heater.buildCost) sumInto(buildCost, s.item, s.qty * count);
+      } else {
+        node.heaterWarning = { building: m.heater.id, slotsRequired: m.building.heatSlotsRequired, heatSlots };
+      }
+    }
   });
 
   const edges: SolveEdge[] = [];

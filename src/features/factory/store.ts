@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import type { BuildingId, ItemId, RecipeId } from '@/shared/data/types';
 import type { FactoryPlan, OptimizeGoal, Rate, UpgradeLevels } from '@/features/solver/types';
 import { translate, useLangStore } from '@/shared/i18n';
+import { syncAcrossTabs } from '@/shared/lib/syncAcrossTabs';
 import { isFactoryDraft, type FactoryDraft } from './schema';
 
 export interface Factory {
@@ -18,8 +19,11 @@ interface FactoryData {
 }
 
 interface FactoryActions {
-  /** Called once game data is loaded: remembers per-build plan defaults and guarantees an active factory. */
-  init: (defaults: Partial<FactoryPlan>) => void;
+  /**
+   * Called once game data is loaded: remembers per-build plan defaults and track lengths, clamps
+   * stored levels to them, and guarantees an active factory.
+   */
+  init: (defaults: Partial<FactoryPlan>, maxLevels?: UpgradeLevels) => void;
   /** Adds factories from a share link or file as new ones (never overwrites); returns their ids. */
   importFactories: (drafts: FactoryDraft[]) => string[];
   createFactory: (name?: string) => string;
@@ -42,10 +46,14 @@ interface FactoryActions {
   setFertilizer: (item: ItemId | null) => void;
   setFertilizerFor: (recipe: RecipeId, item: ItemId | null) => void;
   setOptimize: (goal: OptimizeGoal | null) => void;
+  /** Levels are clamped here, the one seam every writer (UI, file import) goes through. */
   setLevels: (levels: Partial<UpgradeLevels>) => void;
+  /** Drops manual recipe and machine choices of the active factory (the "undo" for an unsolvable pick). */
+  clearOverrides: () => void;
 }
 
-export type FactoryState = FactoryData & FactoryActions & { planDefaults: Partial<FactoryPlan> };
+export type FactoryState = FactoryData &
+  FactoryActions & { planDefaults: Partial<FactoryPlan>; maxLevels: UpgradeLevels | null };
 
 export const STORAGE_KEY = 'afc:v1';
 const VERSION = 1;
@@ -79,6 +87,25 @@ const newId = () => crypto.randomUUID();
 
 const defaultName = (n: number) => translate(useLangStore.getState().lang, 'factory.defaultName', { n });
 
+/** Smallest «Завод N» not already taken, so imports and deletions never produce duplicates. */
+function nextName(factories: Factory[]) {
+  const taken = new Set(factories.map((f) => f.name));
+  let n = 1;
+  while (taken.has(defaultName(n))) n++;
+  return defaultName(n);
+}
+
+/** Whole, non-negative, and within the build's track length once it is known. */
+function clampLevels(levels: Partial<UpgradeLevels>, max: UpgradeLevels | null): UpgradeLevels {
+  const out = zeroLevels();
+  for (const k of Object.keys(out) as (keyof UpgradeLevels)[]) {
+    const v = Number(levels[k]);
+    const n = Number.isFinite(v) ? Math.max(0, Math.round(v)) : 0;
+    out[k] = max ? Math.min(n, max[k]) : n;
+  }
+  return out;
+}
+
 // Starts empty: the first factory is created by init() once game data provides fuel/fertilizer defaults.
 const initialData = (): FactoryData => ({ factories: [], activeId: '', levels: zeroLevels() });
 
@@ -90,7 +117,7 @@ function readPersisted(v: unknown): FactoryData | null {
   const d = v as Partial<FactoryData>;
   const factories = Array.isArray(d.factories) ? d.factories.filter(isFactory) : [];
   if (factories.length === 0) return null;
-  const levels = { ...zeroLevels(), ...(d.levels && typeof d.levels === 'object' ? d.levels : {}) };
+  const levels = clampLevels(d.levels && typeof d.levels === 'object' ? d.levels : {}, null);
   const activeId = factories.some((f) => f.id === d.activeId) ? d.activeId! : factories[0]!.id;
   return { factories, activeId, levels };
 }
@@ -115,9 +142,10 @@ export const useFactoryStore = create<FactoryState>()(
       return {
         ...initialData(),
         planDefaults: {},
+        maxLevels: null,
 
-        init: (planDefaults) => {
-          set({ planDefaults });
+        init: (planDefaults, maxLevels) => {
+          set((s) => ({ planDefaults, maxLevels: maxLevels ?? null, levels: clampLevels(s.levels, maxLevels ?? null) }));
           if (get().factories.length === 0) {
             const f = fresh(defaultName(1));
             set({ factories: [f], activeId: f.id });
@@ -129,7 +157,7 @@ export const useFactoryStore = create<FactoryState>()(
           return added.map((f) => f.id);
         },
         createFactory: (name) => {
-          const f = fresh(name ?? defaultName(get().factories.length + 1));
+          const f = fresh(name ?? nextName(get().factories));
           set((s) => ({ factories: [...s.factories, f], activeId: f.id }));
           return f.id;
         },
@@ -140,7 +168,7 @@ export const useFactoryStore = create<FactoryState>()(
             const rest = s.factories.filter((f) => f.id !== id);
             // The app always needs an active factory to edit, so deleting the last one starts a fresh one.
             if (rest.length === 0) {
-              const f = fresh(defaultName(1));
+              const f = fresh(nextName([]));
               return { factories: [f], activeId: f.id };
             }
             return { factories: rest, activeId: s.activeId === id ? rest[0]!.id : s.activeId };
@@ -184,7 +212,8 @@ export const useFactoryStore = create<FactoryState>()(
         setFertilizerFor: (recipe, item) =>
           patchPlan((p) => ({ fertilizerFor: withKey(p.fertilizerFor, recipe, item) })),
         setOptimize: (optimize) => patchPlan(() => ({ optimize })),
-        setLevels: (levels) => set((s) => ({ levels: { ...s.levels, ...levels } })),
+        setLevels: (levels) => set((s) => ({ levels: clampLevels({ ...s.levels, ...levels }, s.maxLevels) })),
+        clearOverrides: () => patchPlan(() => ({ recipeFor: {}, buildingFor: {} })),
       };
     },
     {
@@ -194,7 +223,14 @@ export const useFactoryStore = create<FactoryState>()(
       // No older schema exists yet: any other version (incl. one written by a newer build) resets
       // to a clean state rather than feeding an unknown shape into the solver.
       migrate: (persisted, version) => (version === VERSION ? (readPersisted(persisted) ?? initialData()) : initialData()),
-      merge: (persisted, current) => ({ ...current, ...(readPersisted(persisted) ?? {}) }),
+      merge: (persisted, current) => {
+        const stored = readPersisted(persisted);
+        if (!stored) return current;
+        // A rehydrate triggered by another tab keeps this tab's own active factory when it still
+        // exists; otherwise two tabs would keep switching each other's view.
+        const activeId = stored.factories.some((f) => f.id === current.activeId) ? current.activeId : stored.activeId;
+        return { ...current, ...stored, activeId, levels: clampLevels(stored.levels, current.maxLevels) };
+      },
     },
   ),
 );
@@ -203,3 +239,6 @@ export const useActiveFactory = () =>
   useFactoryStore((s) => s.factories.find((f) => f.id === s.activeId) ?? s.factories[0]!);
 
 export const useActivePlan = () => useActiveFactory().plan;
+
+// Another tab saved: re-read instead of overwriting its factories with this tab's stale copy on the next edit.
+syncAcrossTabs(STORAGE_KEY, () => useFactoryStore.persist.rehydrate());

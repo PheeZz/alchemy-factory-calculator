@@ -1,4 +1,12 @@
 export { solve } from './solve';
-export { defaultFuel, rankFuels, type FuelRank } from './rank-fuels';
+export {
+  defaultFuel,
+  rankFuels,
+  rankFuelVariants,
+  type FuelRank,
+  type FuelVariant,
+  type FuelVariantOptions,
+} from './rank-fuels';
 export { createSolverClient } from './client';
+export { defaultHeater } from './heaters';
 export { SolverError } from './types';

@@ -7,9 +7,11 @@ import { ToastViewport } from '@/shared/ui/Toast';
 import { bootstrap } from './bootstrap';
 import { LoadErrorScreen, LoadingScreen } from './StatusScreens';
 import { useGameData } from './useGameData';
+import { useShareLinks } from './useShareLinks';
 
 export function App() {
   const lang = useLangStore((s) => s.lang);
+  useShareLinks();
   const game = useGameData(lang, bootstrap);
   useEffect(() => {
     document.documentElement.lang = lang;

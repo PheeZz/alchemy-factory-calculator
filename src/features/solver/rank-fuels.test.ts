@@ -30,7 +30,9 @@ describe('rankFuels', () => {
     expect(ranks.slice(0, 3).map((r) => r.item)).toEqual(['CoalOre', 'Wood', 'Coal']);
     expect(defaultFuel(ranks, loadRealData())).toBe('Coal');
     expect(ranks[2]!.machinesPerHeat).toBeCloseTo(5.5556 / 1000, 6);
-    // CharcoalPowder (the old UI default) burns a third of its own heat in the crucible: 312.5 machines/1000.
-    expect(ranks.find((r) => r.item === 'CharcoalPowder')!.machinesPerHeat).toBeCloseTo(0.3125, 9);
+    // CharcoalPowder (the old UI default) burns a third of its own heat in the crucible: 1250 net/min
+    // → 1875 batches → 125 crucibles + 125 grinders + 62.5 saws = 312.5, plus Stone Stoves:
+    // floor(9/2) = 4 crucibles each → 125/4 = 31.25 → 343.75 machines/1000.
+    expect(ranks.find((r) => r.item === 'CharcoalPowder')!.machinesPerHeat).toBeCloseTo(0.34375, 9);
   });
 });

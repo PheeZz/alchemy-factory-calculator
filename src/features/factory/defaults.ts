@@ -1,25 +1,25 @@
-import type { GameData, Item } from '@/shared/data/types';
-import type { FactoryPlan } from '@/features/solver/types';
-
-const obtainable = (data: GameData, item: Item) =>
-  item.raw || Object.values(data.recipes).some((r) => !r.special && !r.hidden && r.outputs.some((o) => o.item === item.id));
-
-/**
- * Default fuel: the obtainable solid fuel that sacrifices the least sale value per unit of heat
- * (lowest value / heatValue). Liquids are skipped: steam heats through boilers, not furnace slots.
- */
-export function defaultFuel(data: GameData): string | null {
-  const fuels = Object.values(data.items)
-    .filter((i) => i.heatValue > 0 && !i.liquid && obtainable(data, i))
-    .sort((a, b) => a.value / a.heatValue - b.value / b.heatValue || a.id.localeCompare(b.id));
-  return fuels[0]?.id ?? null;
-}
+import type { GameData } from '@/shared/data/types';
+import { defaultFuel } from '@/features/solver';
+import type { UpgradeLevels } from '@/features/solver/types';
+import { fuelRanksFor } from './solverClient';
 
 /** Default fertilizer: the game's starter fertilizer when present, else none. */
 export const defaultFertilizer = (data: GameData): string | null =>
-  data.items.BasicFertilizer ? 'BasicFertilizer' : null;
+  Object.hasOwn(data.items, 'BasicFertilizer') ? 'BasicFertilizer' : null;
 
-export const planDefaults = (data: GameData): Partial<FactoryPlan> => ({
-  fuel: defaultFuel(data),
-  fertilizer: defaultFertilizer(data),
-});
+export const maxLevelsOf = (data: GameData) =>
+  Object.fromEntries(data.upgrades.map((t) => [t.id, t.maxLevel])) as UpgradeLevels;
+
+/**
+ * Plan defaults for new factories. Fuel comes from the solver's ranking (fewest machines per unit of
+ * heat for the whole self-fuelled chain; Coal on real data). If ranking fails the fuel stays unset
+ * and the player picks one; existing factories are never touched.
+ */
+export async function planDefaults(data: GameData, levels: UpgradeLevels) {
+  const fertilizer = defaultFertilizer(data);
+  const fuel = await fuelRanksFor(data, levels, fertilizer).then(
+    (ranks) => defaultFuel(ranks, data),
+    () => null,
+  );
+  return { fuel, fertilizer };
+}

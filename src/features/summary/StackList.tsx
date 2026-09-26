@@ -17,11 +17,14 @@ export function StackList({ rows }: { rows: SummaryRow[] }) {
   return (
     <ul className="flex flex-col gap-1.5">
       {rows.map((r) => (
-        <li key={r.id + (r.tag ?? '')} className="flex items-center gap-2 text-sm">
+        <li key={r.id + (r.tag ?? '')} className="flex items-start gap-2 text-sm">
           <ItemIcon icon={r.icon} name={name(r.nameKey)} seed={r.id} size={20} decorative />
-          <span className="min-w-0 flex-1 truncate">{name(r.nameKey)}</span>
-          {r.tag && <span className="text-xs text-faint">{r.tag}</span>}
-          <span className="num text-muted">{r.value}</span>
+          {/* Tag under the name: beside it, it squeezed long names into mid-word breaks. */}
+          <span className="min-w-0 flex-1 [overflow-wrap:anywhere]" title={name(r.nameKey)}>
+            {name(r.nameKey)}
+            {r.tag && <span className="block text-xs text-faint">{r.tag}</span>}
+          </span>
+          <span className="num shrink-0 text-muted">{r.value}</span>
         </li>
       ))}
     </ul>

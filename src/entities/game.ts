@@ -35,7 +35,15 @@ export function rankedRecipesFor(data: GameData, item: ItemId): Recipe[] {
   return def ? [def, ...rest] : [];
 }
 
-export const fuelItems = (data: GameData): Item[] => Object.values(data.items).filter((i) => i.heatValue > 0);
+const producible = (data: GameData, id: ItemId) =>
+  Object.values(data.recipes).some((r) => !r.special && !r.hidden && r.outputs.some((o) => o.item === id));
+
+/**
+ * Fuels a player can sensibly pick. A liquid with no producer (Steam: raw, heated by boilers) would
+ * be imported for free and make heat costless, so it is left out.
+ */
+export const fuelItems = (data: GameData): Item[] =>
+  Object.values(data.items).filter((i) => i.heatValue > 0 && !(i.liquid && !producible(data, i.id)));
 
 export const fertilizerItems = (data: GameData): Item[] =>
   Object.values(data.items).filter((i) => i.nutrientValue > 0);
