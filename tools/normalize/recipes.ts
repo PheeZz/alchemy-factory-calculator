@@ -121,3 +121,36 @@ export function paradoxRecipe(input: string, items: Record<string, RawItem>, bui
     yieldSkill: false,
   };
 }
+
+/**
+ * Steam Boiler power settings, from SteamBoilerComponent in the game binary (no DT data):
+ * SetBoilingPower writes ProcessingSteamCount / BoilingTotalTime = 30/6 s (0, default),
+ * 100/4 s (1), 300/2 s (2); GetBoilerHeatConsumeSpeed = count / time × 20. The boiler sits on a
+ * heater, so its draw is the recipe's heatPerSec. See research/06-steam.md.
+ */
+const BOILER_HEAT_PER_STEAM = 20;
+const BOILER_POWERS = [
+  ['Low', 30, 6],
+  ['Mid', 100, 4],
+  ['High', 300, 2],
+] as const;
+// ponytail: High is the default (same heat per Steam at every setting, fewest boilers); the game's default is Low
+const BOILER_DEFAULT = 'High';
+
+export function steamBoilerRecipes(buildings: string[], steamNameKey: string, unlockedBy: string | null): Recipe[] {
+  return BOILER_POWERS.map(([power, steam, seconds]) => ({
+    id: `SteamBoiler_${power}`,
+    nameKey: steamNameKey,
+    buildings,
+    inputs: [],
+    outputs: [{ item: 'Steam', qty: steam, chance: 1 }],
+    timeSec: seconds,
+    heatPerSec: (steam / seconds) * BOILER_HEAT_PER_STEAM,
+    nutrientPerBatch: null,
+    alternate: power !== BOILER_DEFAULT,
+    special: null,
+    hidden: unlockedBy === null,
+    unlockedBy,
+    yieldSkill: false,
+  }));
+}
