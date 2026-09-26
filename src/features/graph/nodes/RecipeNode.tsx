@@ -11,7 +11,7 @@ import { Tooltip } from '@/shared/ui/Tooltip';
 import { useGraphData } from '../context';
 import type { RecipeFlowNode } from '../elements';
 
-export const RecipeNode = memo(function RecipeNode({ data: { node, loops }, selected }: NodeProps<RecipeFlowNode>) {
+export const RecipeNode = memo(function RecipeNode({ data: { node, loops, feeds }, selected }: NodeProps<RecipeFlowNode>) {
   const t = useT();
   const name = useNames();
   const data = useGraphData();
@@ -72,12 +72,12 @@ export const RecipeNode = memo(function RecipeNode({ data: { node, loops }, sele
         )}
       </div>
 
-      <p className="num text-[13px] text-muted" aria-label={t('graph.machines', { n: node.machines, exact, util })}>
-        <span className="font-semibold text-ink">{node.machines}×</span> · {exact} ·{' '}
+      <p className="num text-[13px] text-muted" aria-label={t('graph.machines', { n: formatNumber(t.lang, node.machines, 0), exact, util })}>
+        <span className="font-semibold text-ink">{formatNumber(t.lang, node.machines, 0)}×</span> · {exact} ·{' '}
         <span className={node.utilization < 0.5 ? 'text-ember' : undefined}>{util}</span>
       </p>
 
-      {(node.fuel || node.fertilizer || loops.length > 0) && (
+      {(node.fuel || node.fertilizer || loops.length > 0 || feeds.length > 0) && (
       <div className="flex gap-1 overflow-hidden">
         {node.fuel && (
           <GlowBadge tone="ember" title={t('graph.fuel', { item: itemName(node.fuel.item), rate: formatRate(t.lang, node.fuel.rate) })}>
@@ -94,6 +94,15 @@ export const RecipeNode = memo(function RecipeNode({ data: { node, loops }, sele
             {formatRate(t.lang, node.fertilizer.rate)}
           </GlowBadge>
         )}
+        {feeds.map((f) => (
+          <GlowBadge
+            key={f.item + f.kind}
+            tone={f.kind === 'fuel' ? 'ember' : 'verdant'}
+            title={t('graph.feeds', { item: itemName(f.item), rate: formatRate(t.lang, f.perMin), n: f.consumers })}
+          >
+            <Icon name={f.kind === 'fuel' ? 'flame' : 'leaf'} size={11} />→{f.consumers}
+          </GlowBadge>
+        ))}
         {loops.map((l) => (
           <GlowBadge key={l.item} tone="muted" title={t('graph.loop', { item: itemName(l.item), rate: formatRate(t.lang, l.perMin) })}>
             <Icon name="loop" size={11} />

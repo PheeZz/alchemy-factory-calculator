@@ -39,7 +39,7 @@ export function SummaryContent({ data, result }: { data: GameData; result: Solve
     id: m.building,
     icon: data.buildings[m.building]?.icon ?? null,
     nameKey: data.buildings[m.building]?.nameKey ?? m.building,
-    value: `${m.count}×`,
+    value: `${formatNumber(t.lang, m.count, 0)}×`,
   }));
   const buildCost = totals.buildCost.map((s) => itemRow(data, s.item, formatNumber(t.lang, s.qty, 0)));
 

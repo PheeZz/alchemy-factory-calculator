@@ -63,3 +63,17 @@ test('deleting the last factory leaves a fresh active one', () => {
   expect(after.factories).toHaveLength(1);
   expect(after.activeId).toBe(after.factories[0]!.id);
 });
+
+test('init creates the first factory with build defaults only when none exist', () => {
+  useFactoryStore.setState({ factories: [], activeId: '' });
+  useFactoryStore.getState().init({ fuel: 'Charcoal', fertilizer: 'BasicFertilizer' });
+  const first = active();
+  expect(first.plan.fuel).toBe('Charcoal');
+  expect(first.plan.fertilizer).toBe('BasicFertilizer');
+  expect(first.plan.targets).toEqual([]);
+
+  useFactoryStore.getState().init({ fuel: 'Coal' });
+  expect(useFactoryStore.getState().factories).toHaveLength(1);
+  useFactoryStore.getState().createFactory();
+  expect(active().plan.fuel).toBe('Coal');
+});

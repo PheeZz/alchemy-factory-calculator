@@ -60,6 +60,22 @@ function RecipeInspector({ data, node, onClose }: { data: GameData; node: SolveN
         onClose={onClose}
       />
       <MachineStats node={node} />
+      {(node.fuel || node.fertilizer) && (
+        <ul className="flex flex-col gap-1.5 text-sm">
+          {node.fuel && (
+            <li className="flex items-center gap-2 text-ember">
+              <Icon name="flame" size={15} />
+              {t('graph.fuel', { item: itemName(node.fuel.item), rate: formatRate(t.lang, node.fuel.rate) })}
+            </li>
+          )}
+          {node.fertilizer && (
+            <li className="flex items-center gap-2 text-verdant">
+              <Icon name="leaf" size={15} />
+              {t('graph.fertilizer', { item: itemName(node.fertilizer.item), rate: formatRate(t.lang, node.fertilizer.rate) })}
+            </li>
+          )}
+        </ul>
+      )}
       {node.portWarnings.length > 0 && (
         <ul className="flex flex-col gap-1.5" aria-label={t('inspector.warnings')}>
           {node.portWarnings.map((w) => (

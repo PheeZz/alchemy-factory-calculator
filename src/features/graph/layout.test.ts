@@ -1,13 +1,13 @@
 import { demoGameData } from './fixtures/demo-gamedata';
 import { demoResult } from './fixtures/demo-result';
-import { flowDurationSec, toElements } from './elements';
+import { flowDurationSec, labelWidth, toElements } from './elements';
 import { layoutGraph } from './layout';
 
 const graph = () => toElements(demoGameData, demoResult);
 
 test('layout: no node boxes overlap', async () => {
   const { nodes, edges } = graph();
-  const laid = await layoutGraph(nodes, edges);
+  const { nodes: laid } = await layoutGraph(nodes, edges, labelWidth);
   for (let i = 0; i < laid.length; i++)
     for (let j = i + 1; j < laid.length; j++) {
       const a = laid[i]!;
@@ -23,7 +23,7 @@ test('layout: no node boxes overlap', async () => {
 
 test('layout: every import/raw node sits left of every target node', async () => {
   const { nodes, edges } = graph();
-  const laid = await layoutGraph(nodes, edges);
+  const { nodes: laid } = await layoutGraph(nodes, edges, labelWidth);
   const imports = laid.filter((n) => n.type === 'import');
   const targets = laid.filter((n) => n.type === 'target');
   expect(imports.length).toBeGreaterThan(0);
@@ -33,14 +33,42 @@ test('layout: every import/raw node sits left of every target node', async () =>
   expect(maxImportX).toBeLessThan(minTargetX);
 });
 
-test('elements: endpoints derived from edge ids, self-loops folded into nodes, fuel edges tagged', () => {
+test('layout: every edge gets an orthogonal route from source side to target side with a label slot', async () => {
+  const { nodes, edges } = graph();
+  const { nodes: laid, routes } = await layoutGraph(nodes, edges, labelWidth);
+  const byId = new Map(laid.map((n) => [n.id, n]));
+  for (const e of edges) {
+    const r = routes.get(e.id)!;
+    expect(r.points.length).toBeGreaterThanOrEqual(2);
+    // The label slot must sit on its own route; ELK leaves ignored labels (no `text`) at the origin.
+    const xs = r.points.map((p) => p.x);
+    const ys = r.points.map((p) => p.y);
+    expect(r.label!.x).toBeGreaterThanOrEqual(Math.min(...xs) - 1);
+    expect(r.label!.x).toBeLessThanOrEqual(Math.max(...xs) + 1);
+    expect(r.label!.y).toBeGreaterThanOrEqual(Math.min(...ys));
+    expect(r.label!.y).toBeLessThanOrEqual(Math.max(...ys));
+    const src = byId.get(e.source)!;
+    const start = r.points[0]!;
+    // Starts on the source's boundary box.
+    expect(start.x).toBeGreaterThanOrEqual(src.position.x - 1);
+    expect(start.x).toBeLessThanOrEqual(src.position.x + src.width! + 1);
+    for (let i = 1; i < r.points.length; i++) {
+      const [a, b] = [r.points[i - 1]!, r.points[i]!];
+      expect(Math.abs(a.x - b.x) < 0.5 || Math.abs(a.y - b.y) < 0.5, `${e.id} segment ${i} is diagonal`).toBe(true);
+    }
+  }
+});
+
+test('elements: endpoints derived from edge ids, self-loops and fuel deliveries folded into nodes', () => {
   const { nodes, edges } = graph();
   expect(nodes.find((n) => n.id === 'import:Salt')?.type).toBe('import');
   expect(nodes.find((n) => n.id === 'surplus:Sawdust')?.type).toBe('surplus');
   expect(edges.some((e) => e.source === e.target)).toBe(false);
   const kiln = nodes.find((n) => n.id === 'n:Charcoal');
   expect(kiln?.type === 'recipe' && kiln.data.loops.map((l) => l.item)).toEqual(['Charcoal']);
-  expect(edges.find((e) => e.source === 'n:Charcoal' && e.target === 'n:IronIngot')?.data?.kind).toBe('fuel');
+  // Pure fuel deliveries become a chip on the producer, not edges across the chain.
+  expect(edges.some((e) => e.source === 'n:Charcoal' && e.target === 'n:IronIngot')).toBe(false);
+  expect(kiln?.type === 'recipe' && kiln.data.feeds).toEqual([{ item: 'Charcoal', kind: 'fuel', perMin: 28, consumers: 2 }]);
   expect(edges.find((e) => e.target === 'n:Elixir' && e.data?.edge.item === 'LinseedOil')?.data?.kind).toBe('liquid');
 });
 

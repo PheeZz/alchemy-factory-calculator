@@ -1,11 +1,13 @@
-import { useId } from 'react';
+import { useId, useMemo, useState } from 'react';
 import type { GameData, Recipe } from '@/shared/data/types';
-import { recipesProducing } from '@/entities/game';
+import { rankedRecipesFor } from '@/entities/game';
 import { useFactoryStore } from '@/features/factory/store';
 import { useNames, useT } from '@/shared/i18n';
 import { cx } from '@/shared/lib/cx';
 import { formatNumber } from '@/shared/lib/format';
 import { ItemIcon } from '@/shared/ui/ItemIcon';
+import { FIELD } from '@/shared/ui/NumberInput';
+import { filterRecipes, visibleRecipes } from './recipeList';
 
 function StackIcons({ data, stacks }: { data: GameData; stacks: Recipe['inputs'] }) {
   const t = useT();
@@ -26,20 +28,43 @@ function StackIcons({ data, stacks }: { data: GameData; stacks: Recipe['inputs']
   );
 }
 
-/** Alternative recipes for the node's main output as native radio cards. */
+/** Alternative recipes for the node's main output as native radio cards; long lists get a filter. */
 export function RecipeChoice({ data, item, current }: { data: GameData; item: string; current: Recipe }) {
   const t = useT();
   const name = useNames();
-  const recipes = recipesProducing(data, item);
   const setRecipe = useFactoryStore.getState().setRecipe;
   // Unique per instance: desktop aside and mobile sheet may both mount this group.
   const group = useId();
+  const [query, setQuery] = useState('');
+  const [expanded, setExpanded] = useState(false);
+
+  const recipes = useMemo(() => rankedRecipesFor(data, item), [data, item]);
+  const itemName = (id: string) => name(data.items[id]?.nameKey ?? id);
+  // Generated recipes (e.g. Paradox → Mors) share the output's name, so inputs are what tells them apart.
+  const title = (r: Recipe) =>
+    recipes.filter((x) => x.nameKey === r.nameKey).length > 1 ? r.inputs.map((s) => itemName(s.item)).join(' + ') : name(r.nameKey);
+
+  const filtered = filterRecipes(recipes, query, (r) => `${title(r)} ${r.inputs.map((s) => itemName(s.item)).join(' ')}`);
+  const shown = visibleRecipes(filtered, current.id, expanded || query !== '');
+  const hiddenCount = filtered.length - shown.length;
 
   return (
     <fieldset>
-      <legend className="mb-2 text-xs font-medium text-faint">{t('inspector.recipes')}</legend>
+      <legend className="mb-2 text-xs font-medium text-faint">
+        {t('inspector.recipes')} {recipes.length > 1 && <span className="num">({recipes.length})</span>}
+      </legend>
+      {recipes.length > 6 && (
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={t('inspector.filterRecipes')}
+          aria-label={t('inspector.filterRecipes')}
+          className={cx(FIELD, 'mb-2 h-9')}
+        />
+      )}
       <div className="flex flex-col gap-2">
-        {recipes.map((r) => {
+        {shown.map((r, i) => {
           const checked = r.id === current.id;
           return (
             <label
@@ -49,17 +74,13 @@ export function RecipeChoice({ data, item, current }: { data: GameData; item: st
                 checked ? 'border-arcane/70 bg-arcane/12' : 'border-line hover:border-white/25 hover:bg-white/[0.03]',
               )}
             >
-              <input
-                type="radio"
-                name={group}
-                value={r.id}
-                checked={checked}
-                onChange={() => setRecipe(item, r.id)}
-                className="sr-only"
-              />
+              <input type="radio" name={group} value={r.id} checked={checked} onChange={() => setRecipe(item, r.id)} className="sr-only" />
               <span className="mb-2 flex items-center justify-between gap-2">
-                <span className="truncate text-sm font-medium text-ink">{name(r.nameKey)}</span>
-                <span className="num shrink-0 text-xs text-faint">{t('inspector.perBatch', { time: formatNumber(t.lang, r.timeSec, 1) })}</span>
+                <span className="truncate text-sm font-medium text-ink">{title(r)}</span>
+                <span className="num shrink-0 text-xs text-faint">
+                  {i === 0 && r.id === recipes[0]?.id && query === '' ? `${t('inspector.default')} · ` : ''}
+                  {t('inspector.perBatch', { time: formatNumber(t.lang, r.timeSec, 1) })}
+                </span>
               </span>
               <span className="flex items-center gap-2">
                 <StackIcons data={data} stacks={r.inputs} />
@@ -71,6 +92,12 @@ export function RecipeChoice({ data, item, current }: { data: GameData; item: st
             </label>
           );
         })}
+        {filtered.length === 0 && <p className="text-sm text-muted">{t('combobox.empty')}</p>}
+        {hiddenCount > 0 && (
+          <button type="button" onClick={() => setExpanded(true)} className="self-start text-sm text-flow hover:underline">
+            {t('inspector.showAll', { n: filtered.length })}
+          </button>
+        )}
       </div>
     </fieldset>
   );
