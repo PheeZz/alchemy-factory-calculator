@@ -28,7 +28,7 @@ export function SummaryPanel({ data, result, className }: { data: GameData; resu
             className="text-ember"
             format={(n) => t('unit.heat', { value: formatNumber(t.lang, n, 1) })}
           />
-          <Coins copper={result.totals.rawMoneyPerMin} />
+          <Coins copper={t.fromPerMin(result.totals.rawMoneyPerMin)} />
         </span>
         <Icon name="chevron" className="ml-auto text-muted transition-transform group-open:rotate-180" />
       </summary>

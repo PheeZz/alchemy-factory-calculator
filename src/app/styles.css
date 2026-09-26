@@ -195,6 +195,68 @@ dialog.sheet::backdrop {
   backdrop-filter: blur(2px);
 }
 
+/* ---------- Modal (palette, item card): centered panel, bottom sheet on phones ---------- */
+
+dialog.modal {
+  margin: 12vh auto auto;
+  width: min(680px, calc(100vw - 32px));
+  max-height: 76dvh;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgb(181 116 255 / 0.35);
+  border-radius: 1.25rem;
+  background: rgb(17 13 38 / 0.97);
+  box-shadow:
+    0 0 0 1px rgb(79 227 241 / 0.08),
+    0 24px 80px -20px rgb(0 0 0 / 0.8),
+    0 0 60px -20px rgb(181 116 255 / 0.5);
+  opacity: 1;
+  translate: 0 0;
+  transition:
+    opacity 0.2s ease,
+    translate 0.24s cubic-bezier(0.2, 0.8, 0.2, 1),
+    overlay 0.24s allow-discrete,
+    display 0.24s allow-discrete;
+}
+
+dialog.modal:not([open]) {
+  opacity: 0;
+  translate: 0 12px;
+}
+
+@starting-style {
+  dialog.modal[open] {
+    opacity: 0;
+    translate: 0 12px;
+  }
+}
+
+dialog.modal::backdrop {
+  background: rgb(4 3 12 / 0.62);
+  backdrop-filter: blur(3px);
+}
+
+@media (max-width: 639.98px) {
+  dialog.modal {
+    margin: auto 0 0;
+    width: 100%;
+    max-width: 100%;
+    max-height: 88dvh;
+    border-radius: 1.4rem 1.4rem 0 0;
+    border-bottom: none;
+  }
+
+  dialog.modal:not([open]) {
+    translate: 0 100%;
+  }
+
+  @starting-style {
+    dialog.modal[open] {
+      translate: 0 100%;
+    }
+  }
+}
+
 /* ---------- React Flow skin ---------- */
 
 .react-flow {

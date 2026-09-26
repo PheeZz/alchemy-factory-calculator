@@ -2,7 +2,9 @@ import { createContext, createElement, useCallback, useContext, type ReactNode }
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { GameLocale } from '@/shared/data/types';
+import { formatRate } from '@/shared/lib/format';
 import { syncAcrossTabs } from '@/shared/lib/syncAcrossTabs';
+import { fromPerMin, toPerMin, useUnitStore } from '@/shared/lib/units';
 import { ru } from './ru';
 import { en } from './en';
 
@@ -47,10 +49,22 @@ export function translatePlural(lang: Lang, base: PluralBase, n: number, params?
 
 export function useT() {
   const lang = useLangStore((s) => s.lang);
+  const rateUnit = useUnitStore((s) => s.rateUnit);
   const t = (key: DictKey, params?: Record<string, string | number>) => translate(lang, key, params);
   t.plural = (base: PluralBase, n: number, params?: Record<string, string | number>) =>
     translatePlural(lang, base, n, params);
   t.lang = lang;
+  // The one seam for item rates on screen: values arrive in /min, the player picks /s, /min or /h.
+  t.rateUnit = rateUnit;
+  /** "12,5/мин" in the chosen unit. */
+  t.rate = (perMin: number) => translate(lang, `unit.per.${rateUnit}`, { value: formatRate(lang, fromPerMin(perMin, rateUnit)) });
+  /** Number only, for compact chips. */
+  t.rateValue = (perMin: number) => formatRate(lang, fromPerMin(perMin, rateUnit));
+  /** Any per-minute quantity (money, items) converted to the chosen unit; and back, for inputs. */
+  t.fromPerMin = (perMin: number) => fromPerMin(perMin, rateUnit);
+  t.toPerMin = (value: number) => toPerMin(value, rateUnit);
+  /** Unit suffix alone ("/мин") for inputs and column headers. */
+  t.rateSuffix = translate(lang, `unit.per.${rateUnit}`, { value: '' });
   return t;
 }
 

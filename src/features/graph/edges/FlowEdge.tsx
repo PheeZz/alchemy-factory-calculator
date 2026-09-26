@@ -1,7 +1,6 @@
 import { memo, type CSSProperties } from 'react';
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, type EdgeProps } from '@xyflow/react';
 import { useNames, useT } from '@/shared/i18n';
-import { formatRate } from '@/shared/lib/format';
 import { ItemIcon } from '@/shared/ui/ItemIcon';
 import { useGraphData } from '../context';
 import type { FlowKind, GraphEdge } from '../elements';
@@ -69,7 +68,7 @@ export const FlowEdge = memo(function FlowEdge({
         >
           <ItemIcon icon={item?.icon ?? null} name={itemName} seed={edge.item} size={16} />
           <span className="num">
-            {t('unit.perMin', { value: formatRate(t.lang, edge.perMin) })}
+            {t.rate(edge.perMin)}
             {edge.belts > 1 && <span className="text-muted"> · {t.plural('belts', edge.belts)}</span>}
           </span>
         </div>
