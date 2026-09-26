@@ -1,7 +1,7 @@
 import { useId, useMemo, useState } from 'react';
 import type { GameData, Recipe } from '@/shared/data/types';
 import { rankedRecipesFor } from '@/entities/game';
-import { useFactoryStore } from '@/features/factory/store';
+import { useActivePlan, useFactoryStore } from '@/features/factory/store';
 import { useNames, useT } from '@/shared/i18n';
 import { cx } from '@/shared/lib/cx';
 import { formatNumber } from '@/shared/lib/format';
@@ -29,10 +29,22 @@ function StackIcons({ data, stacks }: { data: GameData; stacks: Recipe['inputs']
 }
 
 /** Alternative recipes for the node's main output as native radio cards; long lists get a filter. */
-export function RecipeChoice({ data, item, current }: { data: GameData; item: string; current: Recipe }) {
+export function RecipeChoice({
+  data,
+  item,
+  current,
+  onSelect,
+}: {
+  data: GameData;
+  item: string;
+  current: Recipe;
+  onSelect: (recipeId: string, forItem: string) => void;
+}) {
   const t = useT();
   const name = useNames();
   const setRecipe = useFactoryStore.getState().setRecipe;
+  // The plan, not the solved node, is the source of truth: it answers immediately after a pick.
+  const chosen = useActivePlan().recipeFor[item] ?? current.id;
   // Unique per instance: desktop aside and mobile sheet may both mount this group.
   const group = useId();
   const [query, setQuery] = useState('');
@@ -45,7 +57,7 @@ export function RecipeChoice({ data, item, current }: { data: GameData; item: st
     recipes.filter((x) => x.nameKey === r.nameKey).length > 1 ? r.inputs.map((s) => itemName(s.item)).join(' + ') : name(r.nameKey);
 
   const filtered = filterRecipes(recipes, query, (r) => `${title(r)} ${r.inputs.map((s) => itemName(s.item)).join(' ')}`);
-  const shown = visibleRecipes(filtered, current.id, expanded || query !== '');
+  const shown = visibleRecipes(filtered, chosen, expanded || query !== '');
   const hiddenCount = filtered.length - shown.length;
 
   return (
@@ -65,7 +77,7 @@ export function RecipeChoice({ data, item, current }: { data: GameData; item: st
       )}
       <div className="flex flex-col gap-2">
         {shown.map((r, i) => {
-          const checked = r.id === current.id;
+          const checked = r.id === chosen;
           return (
             <label
               key={r.id}
@@ -74,7 +86,11 @@ export function RecipeChoice({ data, item, current }: { data: GameData; item: st
                 checked ? 'border-arcane/70 bg-arcane/12' : 'border-line hover:border-white/25 hover:bg-white/[0.03]',
               )}
             >
-              <input type="radio" name={group} value={r.id} checked={checked} onChange={() => setRecipe(item, r.id)} className="sr-only" />
+              <input type="radio" name={group} value={r.id} checked={checked} onChange={() => {
+                  setRecipe(item, r.id);
+                  // Node ids are recipe ids: follow the node so the inspector does not close on the swap.
+                  onSelect(r.id, item);
+                }} className="sr-only" />
               <span className="mb-2 flex items-center justify-between gap-2">
                 <span className="truncate text-sm font-medium text-ink">{title(r)}</span>
                 <span className="num shrink-0 text-xs text-faint">

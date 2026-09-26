@@ -10,9 +10,11 @@ const pickKeys = <V>(rec: Record<string, V>, keep: (k: string, v: V) => boolean)
  */
 export function sanitizePlan(data: GameData, plan: FactoryPlan): { plan: FactoryPlan; unknown: string[] } {
   const unknown = new Set<string>();
-  const item = (id: string) => (id in data.items ? true : (unknown.add(id), false));
-  const recipe = (id: string) => (id in data.recipes ? true : (unknown.add(id), false));
-  const building = (id: string) => (id in data.buildings ? true : (unknown.add(id), false));
+  // hasOwn, not `in`: ids come from URLs and files, and "constructor" is `in` every object.
+  const known = (rec: object, id: string) => (Object.hasOwn(rec, id) ? true : (unknown.add(id), false));
+  const item = (id: string) => known(data.items, id);
+  const recipe = (id: string) => known(data.recipes, id);
+  const building = (id: string) => known(data.buildings, id);
   const optItem = (id: string | null) => (id === null || item(id) ? id : null);
 
   const clean: FactoryPlan = {

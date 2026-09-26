@@ -1,10 +1,13 @@
 import { useId, type ReactNode } from 'react';
 import type { Building, GameData, Recipe } from '@/shared/data/types';
-import { fertilizerItems, fuelItems } from '@/entities/game';
+import { fertilizerItems } from '@/entities/game';
 import { useActivePlan, useFactoryStore } from '@/features/factory/store';
 import { useNames, useT } from '@/shared/i18n';
 import { formatNumber } from '@/shared/lib/format';
 import { Select } from '@/shared/ui/Select';
+import { chooseFuel } from '@/features/factory/fuelActions';
+import { FuelOptions } from '@/features/factory/FuelOptions';
+import { isSteamLike } from '@/features/factory/steam';
 
 function Row({ label, children }: { label: string; children: (id: string) => ReactNode }) {
   const id = useId();
@@ -28,6 +31,9 @@ export function NodeOverrides({ data, recipe, building }: { data: GameData; reci
   const factoryDefault = (id: string | null) =>
     id ? t('inspector.factoryDefault', { name: itemName(id)! }) : t('inspector.factoryDefaultNone');
   const heated = (building?.heatCost ?? 0) > 0 || recipe.heatPerSec !== null;
+  // A boiler burning its own steam would be a free-heat loop: its list has solid fuels only.
+  const isBoiler = recipe.outputs.some((o) => isSteamLike(data.items[o.item]));
+  const nodeFuel = plan.fuelFor[recipe.id] ?? plan.fuel;
 
   return (
     <div className="flex flex-col gap-3">
@@ -50,16 +56,15 @@ export function NodeOverrides({ data, recipe, building }: { data: GameData; reci
       {heated && (
         <Row label={t('inspector.fuel')}>
           {(id) => (
-            <Select id={id} value={plan.fuelFor[recipe.id] ?? ''} onChange={(e) => s.setFuelFor(recipe.id, e.target.value || null)}>
+            <Select id={id} value={plan.fuelFor[recipe.id] ?? ''} onChange={(e) => chooseFuel(data, recipe.id, e.target.value || null)}>
               <option value="">{factoryDefault(plan.fuel)}</option>
-              {fuelItems(data).map((i) => (
-                <option key={i.id} value={i.id}>
-                  {name(i.nameKey)}
-                </option>
-              ))}
+              <FuelOptions data={data} excludeSteam={isBoiler} />
             </Select>
           )}
         </Row>
+      )}
+      {heated && !isBoiler && isSteamLike(data.items[nodeFuel ?? '']) && (
+        <p className="-mt-1 text-xs text-muted">{t('settings.steamNote')}</p>
       )}
       {recipe.nutrientPerBatch !== null && (
         <Row label={t('inspector.fertilizer')}>

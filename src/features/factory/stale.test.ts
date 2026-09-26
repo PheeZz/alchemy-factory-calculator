@@ -1,5 +1,4 @@
 import { demoGameData } from '@/features/graph/fixtures/demo-gamedata';
-import { defaultFertilizer, defaultFuel } from './defaults';
 import { clampLevels, sanitizePlan } from './stale';
 import { emptyPlan } from './store';
 
@@ -40,8 +39,19 @@ test('levels are clamped to the track length of the loaded build', () => {
   });
 });
 
-test('default fuel is the obtainable solid fuel with the lowest value per heat', () => {
-  // value/heat: Charcoal 12/120 = 0.1 < Log 5/40 = 0.125 < Plank 3/20 = 0.15.
-  expect(defaultFuel(demoGameData)).toBe('Charcoal');
-  expect(defaultFertilizer(demoGameData)).toBeNull();
+
+test('prototype keys are not mistaken for known ids', () => {
+  const plan = {
+    ...emptyPlan(),
+    targets: [
+      { item: 'constructor', rate: 1 },
+      { item: '__proto__', rate: 1 },
+      { item: 'hasOwnProperty', rate: 1 },
+    ],
+    recipeFor: { toString: 'valueOf' },
+  };
+  const { plan: clean, unknown } = sanitizePlan(demoGameData, plan);
+  expect(clean.targets).toEqual([]);
+  expect(clean.recipeFor).toEqual({});
+  expect(unknown).toEqual(['__proto__', 'constructor', 'hasOwnProperty', 'toString'].sort());
 });

@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { GameData } from '@/shared/data/types';
-// Imported from client/types, not the solver index: the index pulls HiGHS into the main bundle,
-// while the client only spawns the worker that loads it.
-import { createSolverClient } from '@/features/solver/client';
-import { SolverError, type FactoryPlan, type SolveResult, type SolverErrorCode, type UpgradeLevels } from '@/features/solver/types';
+import { SolverError } from '@/features/solver';
+import type { FactoryPlan, SolveResult, SolverErrorCode, UpgradeLevels } from '@/features/solver/types';
+import { getSolverClient } from './solverClient';
 import { clampLevels, sanitizePlan } from './stale';
 
 export interface SolveErrorInfo {
@@ -18,10 +17,6 @@ export interface SolveState {
 }
 
 const DEBOUNCE_MS = 150;
-
-// One worker for the app lifetime: HiGHS WASM init and the GameData post are paid once.
-let client: ReturnType<typeof createSolverClient> | null = null;
-const getClient = () => (client ??= createSolverClient());
 
 const hasWork = (plan: FactoryPlan) =>
   plan.mode === 'targets' ? plan.targets.some((t) => t.rate > 0) : plan.maximize !== null;
@@ -44,7 +39,7 @@ export function useSolve(data: GameData, plan: FactoryPlan, levels: UpgradeLevel
     // Previous graph stays on screen while solving, so typing a rate does not flash an empty canvas.
     setState((s) => ({ result: s.result, status: 'solving' }));
     const timer = setTimeout(() => {
-      getClient()
+      getSolverClient()
         .solve(data, clean, clampLevels(data, levels))
         .then(
           (result) => id === seq.current && setState({ result, status: 'idle' }),

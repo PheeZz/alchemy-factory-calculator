@@ -19,6 +19,7 @@ import type { GraphNode } from './elements';
 import { ImportNode, SurplusNode, TargetNode } from './nodes/EndpointNode';
 import { RecipeNode } from './nodes/RecipeNode';
 import { useGraphLayout } from './useGraphLayout';
+import { openingViewport } from './viewport';
 
 // Module-level so React Flow never sees new type maps (it would remount every node).
 const nodeTypes = { recipe: RecipeNode, import: ImportNode, target: TargetNode, surplus: SurplusNode };
@@ -39,44 +40,48 @@ interface GraphViewProps {
 }
 
 function Graph({ data, result, selectedId, onSelectNode }: GraphViewProps) {
-  const graph = useGraphLayout(data, result);
-  const [nodes, setNodes, onNodesChange] = useNodesState<GraphNode>([]);
-  const { fitView, getViewport, setViewport, getNodes, getNodesBounds } = useReactFlow();
   const wrapper = useRef<HTMLDivElement>(null);
+  const graph = useGraphLayout(data, result, () => ({
+    width: wrapper.current?.clientWidth || 1024,
+    height: wrapper.current?.clientHeight || 600,
+  }));
+  const [nodes, setNodes, onNodesChange] = useNodesState<GraphNode>([]);
+  const { setViewport, getNodes, getNodesBounds } = useReactFlow();
 
   useEffect(() => {
     setNodes(graph ? graph.nodes.map((n) => ({ ...n, selected: n.id === selectedId })) : []);
-    // selectedId deliberately not a dependency: it is synced below, re-seeding here would undo drags.
+    // selectedId deliberately not a dependency: re-seeding on selection would re-measure nodes and
+    // reset the viewport on every click; selection is synced by the effect below.
   }, [graph, setNodes]);
 
   // Fit only once React Flow has measured the freshly laid-out nodes; earlier calls see an empty box.
   const measured = useNodesInitialized();
   useEffect(() => {
-    if (!measured) return;
-    // Small graphs fit whole. Large ones stop at a legible zoom and open on the target side: the
-    // result and its last steps answer "how do I make X", while raw inputs are also listed in the summary.
-    const narrow = (wrapper.current?.clientWidth ?? 1024) < 640;
-    void fitView({ padding: 0.06, minZoom: narrow ? 0.6 : 0.75, maxZoom: 1.1 }).then(() => {
-      const v = getViewport();
-      const all = getNodes();
-      const b = getNodesBounds(all);
-      const el = wrapper.current;
-      if (!el) return;
-      const right = el.clientWidth - 24 - (b.x + b.width) * v.zoom;
-      if (v.x <= right) return; // whole graph fits
-      const t = getNodesBounds(all.filter((n) => n.type === 'target'));
-      void setViewport({ ...v, x: right, y: el.clientHeight / 2 - (t.y + t.height / 2) * v.zoom });
-    });
-  }, [measured, graph, fitView, getViewport, setViewport, getNodes, getNodesBounds]);
+    const el = wrapper.current;
+    if (!measured || !el) return;
+    const all = getNodes();
+    const targets = all.filter((n) => n.type === 'target');
+    void setViewport(
+      openingViewport(getNodesBounds(all), targets.length ? getNodesBounds(targets) : null, {
+        width: el.clientWidth,
+        height: el.clientHeight,
+      }),
+    );
+  }, [measured, graph, setViewport, getNodes, getNodesBounds]);
 
   useEffect(() => {
     setNodes((ns) => ns.map((n) => (!!n.selected === (n.id === selectedId) ? n : { ...n, selected: n.id === selectedId })));
   }, [selectedId, setNodes]);
 
+  // Only real picks select; clearing is an explicit pane click. React Flow also reports an empty
+  // selection when it (re)mounts or re-seeds nodes, which used to close the inspector mid-edit.
   const onSelectionChange = useCallback<OnSelectionChangeFunc>(
-    ({ nodes: sel }) => onSelectNode(sel[0]?.id ?? null),
+    ({ nodes: sel }) => {
+      if (sel[0]) onSelectNode(sel[0].id);
+    },
     [onSelectNode],
   );
+  const onPaneClick = useCallback(() => onSelectNode(null), [onSelectNode]);
 
   return (
     <GraphDataContext.Provider value={data}>
@@ -89,6 +94,7 @@ function Graph({ data, result, selectedId, onSelectNode }: GraphViewProps) {
         edgeTypes={edgeTypes}
         onNodesChange={onNodesChange}
         onSelectionChange={onSelectionChange}
+        onPaneClick={onPaneClick}
         nodesConnectable={false}
         multiSelectionKeyCode={null}
         selectionKeyCode={null}

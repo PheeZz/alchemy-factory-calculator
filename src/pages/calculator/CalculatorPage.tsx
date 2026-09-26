@@ -27,15 +27,19 @@ export function CalculatorPage({ data, locale }: { data: GameData; locale: GameL
   const factory = useActiveFactory();
   const levels = useFactoryStore((s) => s.levels);
   const { result, status, error } = useSolve(data, factory.plan, levels);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // forItem survives the graph re-selecting the same node after a re-solve; a different node clears it.
+  const [selection, setSelection] = useState<{ id: string | null; forItem?: string }>({ id: null });
+  const selectedId = selection.id;
+  const forItem = selection.forItem;
+  const followRecipe = useCallback((id: string, item: string) => setSelection({ id, forItem: item }), []);
   const [sheet, setSheet] = useState<SheetId | null>(null);
 
   const onSelectNode = useCallback((id: string | null) => {
-    setSelectedId(id);
+    setSelection((prev) => (prev.id === id ? prev : { id }));
     // On phones the inspector lives in a sheet, so a tap on a node should open it right away.
     if (id && isMobile()) setSheet('inspector');
   }, []);
-  const closeInspector = () => setSelectedId(null);
+  const closeInspector = () => setSelection({ id: null });
 
   // Sheets are modal dialogs: one left open while the window grows past the breakpoint (tablet
   // rotation) would keep the desktop layout inert behind an invisible backdrop.
@@ -92,7 +96,7 @@ export function CalculatorPage({ data, locale }: { data: GameData; locale: GameL
                 transition={{ duration: 0.22, ease: 'easeOut' }}
                 className="glass hidden min-h-0 w-[360px] overflow-y-auto rounded-panel p-4 lg:block"
               >
-                <NodeInspector data={data} result={result} selectedId={selectedId} onClose={closeInspector} />
+                <NodeInspector data={data} result={result} selectedId={selectedId} forItem={forItem} onClose={closeInspector} onSelect={followRecipe} />
               </motion.aside>
             )}
           </AnimatePresence>
@@ -110,7 +114,7 @@ export function CalculatorPage({ data, locale }: { data: GameData; locale: GameL
           <UpgradesPanel data={data} />
         </Sheet>
         <Sheet open={sheet === 'inspector'} onClose={() => setSheet(null)} title={t('nav.inspector')}>
-          <NodeInspector data={data} result={result} selectedId={selectedId} />
+          <NodeInspector data={data} result={result} selectedId={selectedId} forItem={forItem} onSelect={followRecipe} />
         </Sheet>
         <Sheet open={sheet === 'summary'} onClose={() => setSheet(null)} title={t('nav.summary')}>
           {result ? <SummaryContent data={data} result={result} /> : <p className="text-sm text-muted">{t('summary.none')}</p>}

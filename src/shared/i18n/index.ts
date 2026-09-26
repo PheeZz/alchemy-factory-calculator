@@ -2,6 +2,7 @@ import { createContext, createElement, useCallback, useContext, type ReactNode }
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { GameLocale } from '@/shared/data/types';
+import { syncAcrossTabs } from '@/shared/lib/syncAcrossTabs';
 import { ru } from './ru';
 import { en } from './en';
 
@@ -26,6 +27,8 @@ export const useLangStore = create<{ lang: Lang; setLang: (lang: Lang) => void }
     { name: 'afc:lang', version: 1, partialize: (s) => ({ lang: s.lang }) },
   ),
 );
+
+syncAcrossTabs('afc:lang', () => useLangStore.persist.rehydrate());
 
 /** `{name}` placeholders are replaced from params. */
 export function translate(lang: Lang, key: DictKey, params?: Record<string, string | number>): string {

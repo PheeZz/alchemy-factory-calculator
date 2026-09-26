@@ -14,12 +14,17 @@ import { MachineStats } from './MachineStats';
 import { NodeOverrides } from './NodeOverrides';
 import { recipeRates } from './rates';
 import { RecipeChoice } from './RecipeChoice';
+import { resolveSelection } from './selection';
 
 interface Props {
   data: GameData;
   result: SolveResult | null;
   selectedId: string | null;
   onClose?: () => void;
+  /** Item a recipe was just picked for (kept as the inspector's subject). */
+  forItem?: string;
+  /** Called with the new node id (= recipe id) when the player switches the node's recipe. */
+  onSelect: (id: string, forItem: string) => void;
 }
 
 function Header({ icon, seed, title, subtitle, onClose }: { icon: string | null; seed: string; title: string; subtitle: string; onClose?: () => void }) {
@@ -36,31 +41,52 @@ function Header({ icon, seed, title, subtitle, onClose }: { icon: string | null;
   );
 }
 
-function RecipeInspector({ data, node, onClose }: { data: GameData; node: SolveNode; onClose?: () => void }) {
+/**
+ * `node` is absent while a just-picked recipe is being solved or turned out unsolvable: the choices
+ * stay on screen so the pick can be changed back, only the numbers wait for a result.
+ */
+function RecipeInspector({
+  data,
+  recipeId,
+  node,
+  forItem,
+  onClose,
+  onSelect,
+}: {
+  data: GameData;
+  recipeId: string;
+  node: SolveNode | undefined;
+  forItem: string | undefined;
+  onClose?: () => void;
+  onSelect: (id: string, forItem: string) => void;
+}) {
   const t = useT();
   const name = useNames();
   const plan = useActivePlan();
   const levels = useFactoryStore((s) => s.levels);
-  const recipe = data.recipes[node.recipe];
-  if (!recipe) return null;
-  const building = data.buildings[node.building];
-  const out = mainOutput(recipe);
+  const recipe = data.recipes[recipeId]!;
+  const buildingId = node?.building ?? plan.buildingFor[recipeId] ?? recipe.buildings[0] ?? '';
+  const building = data.buildings[buildingId];
+  // The item the player was choosing a recipe for stays the subject even when the new recipe
+  // makes it only as a side product (Coke → Charcoal); otherwise the node's main output.
+  const produced = forItem ? recipe.outputs.find((o) => o.item === forItem) : undefined;
+  const out = produced ?? mainOutput(recipe);
   const outItem = out ? data.items[out.item] : undefined;
-  const outName = outItem ? name(outItem.nameKey) : node.recipe;
-  const rates = recipeRates(recipe, node, upgradeValue(data, 'alchemySkill', levels.alchemySkill));
+  const outName = outItem ? name(outItem.nameKey) : recipeId;
+  const rates = node && recipeRates(recipe, node, upgradeValue(data, 'alchemySkill', levels.alchemySkill));
   const itemName = (id: string) => name(data.items[id]?.nameKey ?? id);
 
   return (
     <div className="flex flex-col gap-5">
       <Header
         icon={outItem?.icon ?? null}
-        seed={out?.item ?? node.recipe}
+        seed={out?.item ?? recipeId}
         title={outName}
-        subtitle={building ? name(building.nameKey) : node.building}
+        subtitle={building ? name(building.nameKey) : buildingId}
         onClose={onClose}
       />
-      <MachineStats node={node} />
-      {(node.fuel || node.fertilizer) && (
+      {node ? <MachineStats node={node} /> : <p className="rounded-xl border border-line p-3 text-sm text-muted">{t('inspector.pending')}</p>}
+      {node && (node.fuel || node.fertilizer) && (
         <ul className="flex flex-col gap-1.5 text-sm">
           {node.fuel && (
             <li className="flex items-center gap-2 text-ember">
@@ -76,7 +102,7 @@ function RecipeInspector({ data, node, onClose }: { data: GameData; node: SolveN
           )}
         </ul>
       )}
-      {node.portWarnings.length > 0 && (
+      {node && node.portWarnings.length > 0 && (
         <ul className="flex flex-col gap-1.5" aria-label={t('inspector.warnings')}>
           {node.portWarnings.map((w) => (
             <li key={w.item} className="flex gap-2 rounded-xl border border-danger/40 bg-danger/10 p-2.5 text-sm text-[#ffc2c7]">
@@ -90,11 +116,13 @@ function RecipeInspector({ data, node, onClose }: { data: GameData; node: SolveN
           ))}
         </ul>
       )}
-      <div className="grid grid-cols-1 gap-4">
-        <ItemRateList data={data} title={t('inspector.inputs')} rates={rates.inputs} />
-        <ItemRateList data={data} title={t('inspector.outputs')} rates={rates.outputs} />
-      </div>
-      {out && <RecipeChoice data={data} item={out.item} current={recipe} />}
+      {rates && (
+        <div className="grid grid-cols-1 gap-4">
+          <ItemRateList data={data} title={t('inspector.inputs')} rates={rates.inputs} />
+          <ItemRateList data={data} title={t('inspector.outputs')} rates={rates.outputs} />
+        </div>
+      )}
+      {out && <RecipeChoice data={data} item={out.item} current={recipe} onSelect={onSelect} />}
       <NodeOverrides data={data} recipe={recipe} building={building} />
       {out && (
         <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-line p-3 hover:border-white/25">
@@ -140,11 +168,11 @@ function EndpointInspector({ data, id, result, onClose }: { data: GameData; id: 
   );
 }
 
-export function NodeInspector({ data, result, selectedId, onClose }: Props) {
+export function NodeInspector({ data, result, selectedId, forItem, onClose, onSelect }: Props) {
   const t = useT();
-  const node = result?.nodes.find((n) => n.id === selectedId);
-  if (node) return <RecipeInspector data={data} node={node} onClose={onClose} />;
-  if (result && selectedId && parseEndpoint(selectedId)?.kind === 'import')
-    return <EndpointInspector data={data} id={selectedId} result={result} onClose={onClose} />;
+  const sel = resolveSelection(data, result, selectedId);
+  if (sel?.kind === 'recipe')
+    return <RecipeInspector data={data} recipeId={sel.recipeId} node={sel.node} forItem={forItem} onClose={onClose} onSelect={onSelect} />;
+  if (sel?.kind === 'import' && result) return <EndpointInspector data={data} id={sel.id} result={result} onClose={onClose} />;
   return <p className="text-sm text-muted">{t('inspector.empty')}</p>;
 }

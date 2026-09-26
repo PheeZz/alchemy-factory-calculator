@@ -1,7 +1,8 @@
 import { demoGameData } from './fixtures/demo-gamedata';
 import { demoResult } from './fixtures/demo-result';
 import { flowDurationSec, labelWidth, toElements } from './elements';
-import { layoutGraph } from './layout';
+import { layoutForView, layoutGraph } from './layout';
+import { boundsOf } from './viewport';
 
 const graph = () => toElements(demoGameData, demoResult);
 
@@ -76,4 +77,16 @@ test('flow speed grows with throughput and stays bounded', () => {
   expect(flowDurationSec(1)).toBeGreaterThan(flowDurationSec(100));
   expect(flowDurationSec(0)).toBeLessThanOrEqual(6);
   expect(flowDurationSec(1e9)).toBe(0.8);
+});
+
+test('a long chain is wrapped into rows only when that makes it fit the view', async () => {
+  const { nodes, edges } = graph();
+  // Roomy view: the flat layout already fits.
+  expect((await layoutForView(nodes, edges, labelWidth, { width: 2400, height: 1200 })).wrapped).toBe(false);
+  // 900×700: the flat chain (~1480 px) would need zoom 0.53 < 0.55, two rows fit at ~0.68.
+  const rows = await layoutForView(nodes, edges, labelWidth, { width: 900, height: 700 });
+  expect(rows.wrapped).toBe(true);
+  expect(boundsOf(rows.nodes).width).toBeLessThan(boundsOf((await layoutGraph(nodes, edges, labelWidth)).nodes).width);
+  // Phone: nothing fits, keep the flat layout (target-side view takes over).
+  expect((await layoutForView(nodes, edges, labelWidth, { width: 200, height: 200 })).wrapped).toBe(false);
 });
