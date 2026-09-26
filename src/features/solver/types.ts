@@ -27,6 +27,9 @@ export interface FactoryPlan {
   fertilizerFor: Record<RecipeId, ItemId>;
   /** null = hybrid mode: manual choices, LP only balances flows. */
   optimize: OptimizeGoal | null;
+  /** Heater building for heated machines; absent/null → defaultHeater(data). */
+  heater?: BuildingId | null;
+  heaterFor?: Record<RecipeId, BuildingId>;
 }
 
 export type UpgradeLevels = Record<UpgradeTrackId, number>;
@@ -51,6 +54,10 @@ export interface SolveNode {
   fuel?: Rate;
   fertilizer?: Rate;
   portWarnings: PortWarning[];
+  /** Heated nodes only: machines are never split across heaters. */
+  heater?: { building: BuildingId; countExact: number; count: number };
+  /** The machine needs more slots than the heater has; no heaters counted. */
+  heaterWarning?: { building: BuildingId; slotsRequired: number; heatSlots: number };
 }
 
 /** Edge endpoints: a node id, or `import:<item>`, `target:<item>`, `surplus:<item>`. */

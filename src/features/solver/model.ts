@@ -1,5 +1,6 @@
 import type { Building, GameData, Item, ItemId, Recipe, Stack } from '@/shared/data/types';
 import type { Multipliers } from '@/features/upgrades/multipliers';
+import { pickHeater } from './heaters';
 import { SolverError, type FactoryPlan } from './types';
 
 export interface ModelRecipe {
@@ -19,6 +20,8 @@ export interface ModelRecipe {
   cost: number;
   /** Fuel that is also this input-less recipe's output (boiler on its own Steam): rejected once chosen. */
   burnsOwnOutput: ItemId | null;
+  /** Heated recipes only. */
+  heater: Building | null;
 }
 
 export interface ModelImport {
@@ -132,6 +135,7 @@ export function buildModel(data: GameData, plan: FactoryPlan, mult: Multipliers)
         fertilizer: fert ? { item: fert.id, qty: r.nutrientPerBatch! / (fert.nutrientValue * mult.fertilizer) } : null,
         cost: goal === 'machines' ? machinesPerBatch : RECIPE_COST,
         burnsOwnOutput: fuel && r.inputs.length === 0 && r.outputs.some((o) => o.item === fuel.id) ? fuel.id : null,
+        heater: heatPerBatch > 0 ? pickHeater(data, plan, r.id, fuel ?? null) : null,
       };
     }
     resolved.set(r, mr);
