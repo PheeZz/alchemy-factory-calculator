@@ -4,7 +4,7 @@ import { mainOutput, upgradeValue } from '@/entities/game';
 import { useActivePlan, useFactoryStore } from '@/features/factory/store';
 import { parseEndpoint } from '@/features/graph/elements';
 import { useNames, useT } from '@/shared/i18n';
-import { formatNumber, formatRate } from '@/shared/lib/format';
+import { formatNumber } from '@/shared/lib/format';
 import { Button, IconButton } from '@/shared/ui/Button';
 import { GlowBadge } from '@/shared/ui/GlowBadge';
 import { Icon } from '@/shared/ui/Icon';
@@ -106,7 +106,7 @@ function RecipeInspector({
           {node.fuel && (
             <li className="flex items-center gap-2 text-ember">
               <Icon name="flame" size={15} />
-              {t('graph.fuel', { item: itemName(node.fuel.item), rate: formatRate(t.lang, node.fuel.rate) })}
+              {t('graph.fuel', { item: itemName(node.fuel.item), rate: t.rate(node.fuel.rate) })}
             </li>
           )}
           {node.heater && (
@@ -130,7 +130,7 @@ function RecipeInspector({
           {node.fertilizer && (
             <li className="flex items-center gap-2 text-verdant">
               <Icon name="leaf" size={15} />
-              {t('graph.fertilizer', { item: itemName(node.fertilizer.item), rate: formatRate(t.lang, node.fertilizer.rate) })}
+              {t('graph.fertilizer', { item: itemName(node.fertilizer.item), rate: t.rate(node.fertilizer.rate) })}
             </li>
           )}
         </ul>
@@ -142,8 +142,8 @@ function RecipeInspector({
               <Icon name="alert" size={16} className="mt-0.5 shrink-0 text-danger" />
               {t('graph.portWarning', {
                 item: itemName(w.item),
-                perMachine: formatRate(t.lang, w.perMachine),
-                belt: formatRate(t.lang, w.beltSpeed),
+                perMachine: t.rate(w.perMachine),
+                belt: t.rate(w.beltSpeed),
               })}
             </li>
           ))}
@@ -189,7 +189,7 @@ function EndpointInspector({ data, id, result, onClose }: { data: GameData; id: 
     <div className="flex flex-col gap-4">
       <Header icon={item?.icon ?? null} seed={ep.item} title={title} subtitle={t(imported ? 'graph.import' : 'graph.raw')} onClose={onClose} />
       <GlowBadge tone="flow" className="self-start text-sm">
-        {t('unit.perMin', { value: formatRate(t.lang, perMin) })}
+        {t.rate(perMin)}
       </GlowBadge>
       <p className="text-sm text-muted">{t(imported ? 'inspector.importNode' : 'inspector.rawNode')}</p>
       {imported && (

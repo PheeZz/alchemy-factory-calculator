@@ -3,7 +3,7 @@ import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { mainOutput } from '@/entities/game';
 import { useNames, useT } from '@/shared/i18n';
 import { cx } from '@/shared/lib/cx';
-import { formatNumber, formatPercent, formatRate } from '@/shared/lib/format';
+import { formatNumber, formatPercent } from '@/shared/lib/format';
 import { GlowBadge } from '@/shared/ui/GlowBadge';
 import { Icon } from '@/shared/ui/Icon';
 import { ItemIcon } from '@/shared/ui/ItemIcon';
@@ -64,8 +64,8 @@ export const RecipeNode = memo(function RecipeNode({ data: { node, loops, feeds 
               <span key={w.item} className="block">
                 {t('graph.portWarning', {
                   item: itemName(w.item),
-                  perMachine: formatRate(t.lang, w.perMachine),
-                  belt: formatRate(t.lang, w.beltSpeed),
+                  perMachine: t.rate(w.perMachine),
+                  belt: t.rate(w.beltSpeed),
                 })}
               </span>
             ))}
@@ -117,33 +117,33 @@ export const RecipeNode = memo(function RecipeNode({ data: { node, loops, feeds 
           </GlowBadge>
         )}
         {node.fuel && (
-          <GlowBadge tone="ember" title={t('graph.fuel', { item: itemName(node.fuel.item), rate: formatRate(t.lang, node.fuel.rate) })}>
+          <GlowBadge tone="ember" title={t('graph.fuel', { item: itemName(node.fuel.item), rate: t.rate(node.fuel.rate) })}>
             <Icon name="flame" size={11} />
-            {formatRate(t.lang, node.fuel.rate)}
+            {t.rateValue(node.fuel.rate)}
           </GlowBadge>
         )}
         {node.fertilizer && (
           <GlowBadge
             tone="verdant"
-            title={t('graph.fertilizer', { item: itemName(node.fertilizer.item), rate: formatRate(t.lang, node.fertilizer.rate) })}
+            title={t('graph.fertilizer', { item: itemName(node.fertilizer.item), rate: t.rate(node.fertilizer.rate) })}
           >
             <Icon name="leaf" size={11} />
-            {formatRate(t.lang, node.fertilizer.rate)}
+            {t.rateValue(node.fertilizer.rate)}
           </GlowBadge>
         )}
         {feeds.map((f) => (
           <GlowBadge
             key={f.item + f.kind}
             tone={f.kind === 'fuel' ? 'ember' : 'verdant'}
-            title={t('graph.feeds', { item: itemName(f.item), rate: formatRate(t.lang, f.perMin), n: f.consumers })}
+            title={t('graph.feeds', { item: itemName(f.item), rate: t.rate(f.perMin), n: f.consumers })}
           >
             <Icon name={f.kind === 'fuel' ? 'flame' : 'leaf'} size={11} />→{f.consumers}
           </GlowBadge>
         ))}
         {loops.map((l) => (
-          <GlowBadge key={l.item} tone="muted" title={t('graph.loop', { item: itemName(l.item), rate: formatRate(t.lang, l.perMin) })}>
+          <GlowBadge key={l.item} tone="muted" title={t('graph.loop', { item: itemName(l.item), rate: t.rate(l.perMin) })}>
             <Icon name="loop" size={11} />
-            {formatRate(t.lang, l.perMin)}
+            {t.rateValue(l.perMin)}
           </GlowBadge>
         ))}
       </div>

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { LayoutGroup } from 'motion/react';
 import type { GameData } from '@/shared/data/types';
 import { useActiveFactory, useFactoryStore } from '@/features/factory/store';
@@ -26,6 +27,22 @@ export function FuelTiersPage({ data }: { data: GameData }) {
     heater: factory.plan.heater ?? null,
   });
   const groups = state.status === 'ready' ? groupByTier(state.variants, metric) : [];
+
+  // Arriving from the palette or an item card: bring that fuel's best row into view and flash it once.
+  const highlight = useTierControls((s) => s.highlight);
+  useEffect(() => {
+    if (state.status !== 'ready' || !highlight) return;
+    const row = document.querySelector<HTMLElement>(`main li[data-fuel="${CSS.escape(highlight)}"]`);
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    row?.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' });
+    // WAAPI, not a class: React re-renders the row right after (highlight is cleared) and would drop it.
+    if (!reduce)
+      row?.animate(
+        [{ boxShadow: '0 0 0 1px #ffb547, 0 0 26px -4px #ffb547' }, { boxShadow: '0 0 0 1px #ffb547, 0 0 26px -4px #ffb547', offset: 0.3 }, { boxShadow: 'none' }],
+        { duration: 1800, easing: 'ease-out' },
+      );
+    useTierControls.getState().setHighlight(null);
+  }, [state.status, highlight]);
 
   return (
     <main className="min-h-0 flex-1 overflow-y-auto px-3 pt-4 pb-10 lg:px-6">
@@ -59,7 +76,7 @@ export function FuelTiersPage({ data }: { data: GameData }) {
               <span>{t('tiers.col.fuel')}</span>
               <span>{t('tiers.col.machines')}</span>
               <span>{t('tiers.col.raw')}</span>
-              <span>{t('tiers.col.price')}</span>
+              <span>{t('tiers.col.price', { unit: t.rateSuffix })}</span>
               <span>{t('tiers.col.markup')}</span>
               <span>{t('tiers.col.perRaw')}</span>
               <span />

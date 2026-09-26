@@ -1,4 +1,4 @@
-import type { Item, Recipe } from '../../src/shared/data/types';
+import type { Item, Recipe, SellType } from '../../src/shared/data/types';
 import type { RawItem, RawVec } from './load';
 import { fractionsOf } from './recipes';
 
@@ -22,8 +22,20 @@ export function normalizeItem(id: string, raw: RawItem, icon: string | null): It
     maxStack: raw.MaximumStack < 0 ? 1 : raw.MaximumStack,
     tags: raw.IngredientTags.map((t) => t.replace(/^Ingredient\.Type\./, '')),
     raw: true,
+    sellType: sellTypeOf(raw.SellType),
   };
 }
+
+const SELL_TYPES: Record<string, SellType> = {
+  Groceries: 'groceries',
+  Remedies: 'remedies',
+  Jewelry: 'jewelry',
+  Liquid: 'liquid',
+  Artcrafts: 'artcrafts',
+};
+
+/** Worthless items (raw goods, intermediates, catalysts) have a value but no shop buys them. */
+const sellTypeOf = (t: string | undefined): SellType | null => SELL_TYPES[t?.split('::')[1] ?? ''] ?? null;
 
 /** Recipes the solver may use on its own: not special and reachable in a normal game. */
 export const isProductive = (r: Recipe) => r.special === null && !r.hidden;

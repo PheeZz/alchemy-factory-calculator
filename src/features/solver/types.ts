@@ -34,6 +34,8 @@ export interface FactoryPlan {
   unlocked?: string[] | null;
   /** Catalyst item per catalyst-capable recipe (Recipe.catalyst). */
   catalystFor?: Record<RecipeId, ItemId>;
+  /** Machine limits per recipe: "I have N of these" (an upper bound for the LP). */
+  machineCaps?: Record<RecipeId, number>;
 }
 
 export type UpgradeLevels = Record<UpgradeTrackId, number>;
@@ -64,6 +66,16 @@ export interface SolveNode {
   heater?: { building: BuildingId; countExact: number; count: number };
   /** The machine needs more slots than the heater has; no heaters counted. */
   heaterWarning?: { building: BuildingId; slotsRequired: number; heatSlots: number };
+  /** Space of the built machines (heaters included). */
+  area?: Area;
+}
+
+export interface Area {
+  /** Ground tiles: footprint x·y extent × count. Heated machines stand on their heaters, so a heated
+   * node's ground is its heaters' ground. */
+  floor: number;
+  /** Grid cells of all levels (footprint cells × count), machines and heaters. */
+  cells: number;
 }
 
 /** Edge endpoints: a node id, or `import:<item>`, `target:<item>`, `surplus:<item>`. */
@@ -86,6 +98,7 @@ export interface SolveTotals {
   rawMoneyPerMin: number;
   machines: { building: BuildingId; count: number }[];
   heatPerSec: number;
+  area?: Area;
 }
 
 export interface SolveResult {

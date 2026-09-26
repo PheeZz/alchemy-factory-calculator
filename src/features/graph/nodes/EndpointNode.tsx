@@ -2,7 +2,6 @@ import { memo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { useNames, useT, type DictKey } from '@/shared/i18n';
 import { cx } from '@/shared/lib/cx';
-import { formatRate } from '@/shared/lib/format';
 import { ItemIcon } from '@/shared/ui/ItemIcon';
 import { useGraphData } from '../context';
 import type { EndpointKind, ItemFlowNode } from '../elements';
@@ -41,7 +40,7 @@ function EndpointShell({ kind, data, selected }: { kind: EndpointKind; data: Ite
         </span>
         <span className="num block truncate text-xs">
           <span className={STYLE[kind].label}>{t(labelKey)}</span>
-          <span className="text-muted"> · {t('unit.perMin', { value: formatRate(t.lang, data.perMin) })}</span>
+          <span className="text-muted"> · {t.rate(data.perMin)}</span>
         </span>
       </span>
       {kind === 'import' && <Handle type="source" position={Position.Right} isConnectable={false} />}

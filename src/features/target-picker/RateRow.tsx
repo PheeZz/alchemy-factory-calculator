@@ -35,7 +35,13 @@ export function RateRow({
       {unlimited ? (
         <span className="grid h-10 place-items-center rounded-xl border border-flow/30 bg-flow/5 text-xs text-flow">{t('supplies.unlimited')}</span>
       ) : (
-        <NumberInput value={rate} onChange={onRate} suffix={t('unit.perMin', { value: '' })} aria-label={t('targets.rate', { name })} />
+        <NumberInput
+          // Shown and typed in the chosen unit; the plan keeps items/min.
+          value={t.fromPerMin(rate)}
+          onChange={(v) => onRate(t.toPerMin(v))}
+          suffix={t.rateSuffix}
+          aria-label={t('targets.rate', { name, unit: t.rateSuffix })}
+        />
       )}
       {onToggleUnlimited && (
         <IconButton

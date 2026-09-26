@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createSolverClient, SOLVE_TIMEOUT_MS, type WorkerRequest } from './client';
 import { createWorkerHandler } from './worker';
-import { rankFuels, rankFuelVariants, solve, SolverError } from './index';
+import { rankFuels, rankFuelVariants, rankProfitVariants, solve, SolverError, upgradeImpact } from './index';
 import { heatData } from './fixtures/heat';
 import { level0, plan } from './fixtures/builders';
 import { chainData } from './fixtures/chain';
@@ -51,6 +51,15 @@ describe('createSolverClient', () => {
     expect(await client.rankFuels(heatData, level0)).toEqual(await rankFuels(heatData, level0));
     const opts = { fertilizer: null, heating: 'self' } as const;
     expect(await client.rankFuelVariants(heatData, level0, opts)).toEqual(await rankFuelVariants(heatData, level0, opts));
+    client.dispose();
+  });
+
+  it('runs the profit ranking and the upgrade advisor in the worker', async () => {
+    const client = createSolverClient(() => fakeWorker().worker);
+    const p = plan({ targets: [{ item: 'Gear', rate: 50 }] });
+    expect(await client.upgradeImpact(chainData, p, level0)).toEqual(await upgradeImpact(chainData, p, level0));
+    const opts = { fuel: null, fertilizer: null };
+    expect(await client.rankProfitVariants(chainData, level0, opts)).toEqual(await rankProfitVariants(chainData, level0, opts));
     client.dispose();
   });
 

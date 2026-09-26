@@ -5,7 +5,7 @@ import type { FuelVariant } from '@/features/solver';
 import { Coins } from '@/features/summary/Coins';
 import { useNames, useT } from '@/shared/i18n';
 import { cx } from '@/shared/lib/cx';
-import { formatNumber, formatRate } from '@/shared/lib/format';
+import { formatNumber } from '@/shared/lib/format';
 import { Button } from '@/shared/ui/Button';
 import { ItemIcon } from '@/shared/ui/ItemIcon';
 import type { Tier, TierMetric } from '../lib/tiers';
@@ -40,6 +40,7 @@ export const VariantRow = forwardRef<
   return (
     <motion.li
       ref={ref}
+      data-fuel={v.fuel}
       layoutId={layoutId}
       layout="position"
       transition={{ type: 'spring', stiffness: 420, damping: 38 }}
@@ -74,22 +75,22 @@ export const VariantRow = forwardRef<
             {v.raw.map((s) => (
               <span key={s.item} className="inline-flex items-center gap-1" title={itemName(s.item)}>
                 <ItemIcon icon={data.items[s.item]?.icon ?? null} name={itemName(s.item)} seed={s.item} size={16} />
-                {t('unit.perMin', { value: formatRate(t.lang, s.qty) })}
+                {t.rate(s.qty)}
               </span>
             ))}
           </span>
         )}
       </Cell>
 
-      <Cell label={t('tiers.col.price')} active={metric === 'price'}>
+      <Cell label={t('tiers.col.price', { unit: t.rateSuffix })} active={metric === 'price'}>
         <span className="flex flex-col gap-0.5 text-xs">
           <span className="flex items-center justify-between gap-2">
             <span className="text-faint">{t('tiers.rawCost')}</span>
-            <Coins copper={v.rawValuePer1k} />
+            <Coins copper={t.fromPerMin(v.rawValuePer1k)} />
           </span>
           <span className="flex items-center justify-between gap-2">
             <span className="text-faint">{t('tiers.saleValue')}</span>
-            <Coins copper={v.fuelValuePer1k} />
+            <Coins copper={t.fromPerMin(v.fuelValuePer1k)} />
           </span>
         </span>
       </Cell>
