@@ -1,6 +1,7 @@
 import type { GameData } from '@/shared/data/types';
 import type { WorkerRequest, WorkerResponse } from './client';
-import { solve } from './index';
+import { rankFuels } from './rank-fuels';
+import { solve } from './solve';
 import { SolverError } from './types';
 
 /** Message handler with its own GameData cache; exported so tests can drive it without a real Worker. */
@@ -13,7 +14,9 @@ export function createWorkerHandler() {
     }
     try {
       if (data?.build.id !== msg.buildId) throw new Error(`game data ${msg.buildId} was not posted to the worker`);
-      return { id: msg.id, ok: true, result: await solve(data, msg.plan, msg.levels) };
+      const result =
+        msg.type === 'solve' ? await solve(data, msg.plan, msg.levels) : await rankFuels(data, msg.levels, msg.fertilizer);
+      return { id: msg.id, ok: true, result };
     } catch (e) {
       const err = e instanceof SolverError ? e : null;
       return {

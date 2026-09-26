@@ -1,18 +1,22 @@
 import type { GameData, ItemId } from '@/shared/data/types';
+import type { FuelRank } from './rank-fuels';
 import { SolverError, type FactoryPlan, type SolveResult, type SolverErrorCode, type UpgradeLevels } from './types';
 
-export type WorkerRequest =
-  | { type: 'data'; data: GameData }
-  | { type: 'solve'; id: number; buildId: string; plan: FactoryPlan; levels: UpgradeLevels };
+/** Jobs the worker runs against the cached GameData. */
+export type WorkerJob =
+  | { type: 'solve'; plan: FactoryPlan; levels: UpgradeLevels }
+  | { type: 'rankFuels'; levels: UpgradeLevels; fertilizer: ItemId | null };
+
+export type WorkerRequest = { type: 'data'; data: GameData } | (WorkerJob & { id: number; buildId: string });
 
 export type WorkerResponse =
-  | { id: number; ok: true; result: SolveResult }
+  | { id: number; ok: true; result: SolveResult | FuelRank[] }
   | { id: number; ok: false; code: SolverErrorCode; item?: ItemId; message: string };
 
 export const SOLVE_TIMEOUT_MS = 10_000;
 
 interface Pending {
-  resolve(result: SolveResult): void;
+  resolve(result: SolveResult | FuelRank[]): void;
   reject(error: SolverError): void;
   timer: ReturnType<typeof setTimeout>;
 }
@@ -58,25 +62,30 @@ export function createSolverClient(
     return (worker = w);
   };
 
+  const run = (data: GameData, job: WorkerJob): Promise<SolveResult | FuelRank[]> => {
+    const w = ensureWorker();
+    if (postedBuild !== data.build.id) {
+      w.postMessage({ type: 'data', data } satisfies WorkerRequest);
+      postedBuild = data.build.id;
+    }
+    const id = nextId++;
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        // HiGHS blocks the worker thread, so a runaway solve can only be stopped by killing it;
+        // everything queued behind it dies too.
+        reset();
+        failAll(new SolverError('timeout'));
+      }, SOLVE_TIMEOUT_MS);
+      pending.set(id, { resolve, reject, timer });
+      w.postMessage({ ...job, id, buildId: data.build.id } satisfies WorkerRequest);
+    });
+  };
+
   return {
-    solve(data: GameData, plan: FactoryPlan, levels: UpgradeLevels): Promise<SolveResult> {
-      const w = ensureWorker();
-      if (postedBuild !== data.build.id) {
-        w.postMessage({ type: 'data', data } satisfies WorkerRequest);
-        postedBuild = data.build.id;
-      }
-      const id = nextId++;
-      return new Promise<SolveResult>((resolve, reject) => {
-        const timer = setTimeout(() => {
-          // HiGHS blocks the worker thread, so a runaway solve can only be stopped by killing it;
-          // everything queued behind it dies too.
-          reset();
-          failAll(new SolverError('timeout'));
-        }, SOLVE_TIMEOUT_MS);
-        pending.set(id, { resolve, reject, timer });
-        w.postMessage({ type: 'solve', id, buildId: data.build.id, plan, levels } satisfies WorkerRequest);
-      });
-    },
+    solve: (data: GameData, plan: FactoryPlan, levels: UpgradeLevels) =>
+      run(data, { type: 'solve', plan, levels }) as Promise<SolveResult>,
+    rankFuels: (data: GameData, levels: UpgradeLevels, fertilizer: ItemId | null = null) =>
+      run(data, { type: 'rankFuels', levels, fertilizer }) as Promise<FuelRank[]>,
     dispose() {
       reset();
       failAll(new SolverError('internal', undefined, 'solver disposed'));
