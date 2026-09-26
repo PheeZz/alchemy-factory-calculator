@@ -7,6 +7,7 @@ import { Icon } from '@/shared/ui/Icon';
 import { Panel } from '@/shared/ui/Panel';
 import { SearchCombobox, type ComboOption } from '@/shared/ui/SearchCombobox';
 import { Tabs } from '@/shared/ui/Tabs';
+import { burstFrom } from '@/shared/ui/burst';
 import { RateRow } from './RateRow';
 import { useItemOptions } from './useItemOptions';
 
@@ -31,6 +32,7 @@ function AddRow({ options, label, onPick }: { options: ComboOption[]; label: str
         label={label}
         placeholder={t('combobox.placeholder')}
         onChange={(item) => {
+          burstFrom(document.activeElement);
           onPick(item);
           setOpen(false);
         }}

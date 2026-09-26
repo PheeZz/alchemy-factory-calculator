@@ -30,10 +30,11 @@ export const RecipeNode = memo(function RecipeNode({ data: { node, loops, feeds 
   return (
     <div
       className={cx(
-        'glass group relative flex h-full w-full flex-col justify-center gap-2 rounded-2xl px-3 py-2.5 transition-shadow duration-200',
+        'glass-flat group relative flex h-full w-full flex-col justify-center gap-2 rounded-2xl px-3 py-2.5 transition-shadow duration-200',
         selected ? 'border-arcane/80 shadow-glow-arcane' : 'hover:border-white/25',
       )}
     >
+      {selected && <span className="node-pulse" aria-hidden="true" />}
       <Handle type="target" position={Position.Left} isConnectable={false} />
       <div className="flex items-center gap-2.5">
         <span className="relative shrink-0">
@@ -50,8 +51,12 @@ export const RecipeNode = memo(function RecipeNode({ data: { node, loops, feeds 
           )}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[14px] leading-tight font-semibold text-ink">{title}</span>
-          <span className="block truncate text-xs text-muted">{buildingName}</span>
+          <span className="block truncate text-[14px] leading-tight font-semibold text-ink" title={title}>
+            {title}
+          </span>
+          <span className="block truncate text-xs text-muted" title={buildingName}>
+            {buildingName}
+          </span>
         </span>
         {node.portWarnings.length > 0 && (
           <Tooltip

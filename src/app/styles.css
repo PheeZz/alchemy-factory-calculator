@@ -68,8 +68,96 @@
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
 }
 
+/* Glass look without backdrop-filter, for elements repeated hundreds of times on the graph canvas:
+   a blur per node/label is what dropped a 124-node graph to ~50 fps when fully zoomed out. */
+@utility glass-flat {
+  background: rgb(19 15 40 / 0.94);
+  border: 1px solid var(--color-line);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
+}
+
 @utility num {
   font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Neon accents ---------- */
+
+/* Running conic border. Only `--spin` animates (paint of one small element), and only while shown:
+   hover/focus on primary buttons, always on the single `.is-live` hero field. */
+@property --spin {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.cta-glow {
+  position: relative;
+  isolation: isolate;
+}
+
+.cta-glow::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  padding: 1.5px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--spin),
+    transparent 0 50%,
+    var(--color-flow) 62%,
+    var(--color-arcane) 74%,
+    var(--color-rose) 84%,
+    transparent 92%
+  );
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+  /* Not "spin": Tailwind already defines @keyframes spin (a transform rotate), which would win. */
+  animation: cta-spin 3.2s linear infinite paused;
+}
+
+.cta-glow:hover::before,
+.cta-glow:focus-visible::before,
+.cta-glow:focus-within::before,
+.cta-glow.is-live::before {
+  opacity: 1;
+  animation-play-state: running;
+}
+
+@keyframes cta-spin {
+  to {
+    --spin: 360deg;
+  }
+}
+
+/* Neon sweep over content that is being (re)computed. Transform-only. */
+.shimmer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  background: linear-gradient(100deg, transparent, rgb(79 227 241 / 0.08) 40%, rgb(181 116 255 / 0.12) 55%, transparent);
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(260%);
+  }
 }
 
 /* ---------- Bottom sheet (native dialog) ---------- */
@@ -153,16 +241,54 @@ dialog.sheet::backdrop {
   outline-offset: 3px;
 }
 
-/* Flowing dash: duration comes from the edge (log of items/min), so busy belts visibly run faster. */
-.flow-dash {
-  stroke-dasharray: 3 11;
+/* Running lights: duration comes from the edge (log of items/min), so busy belts visibly run faster. */
+.flow-spark {
+  stroke-dasharray: 0 24;
   stroke-linecap: round;
-  animation: flow-dash var(--flow-dur, 3s) linear infinite;
+  animation: flow-spark var(--flow-dur, 3s) linear infinite;
 }
 
-@keyframes flow-dash {
+@keyframes flow-spark {
   to {
-    stroke-dashoffset: -28;
+    stroke-dashoffset: -48;
+  }
+}
+
+/* Zoomed far out the dots are sub-pixel noise; dimmed edges are out of focus. Both stop repainting. */
+.react-flow.graph-far .flow-spark,
+.react-flow__edge.is-dim .flow-spark {
+  animation-play-state: paused;
+}
+
+/* Hover focus on a chain: the hovered node, its direct inputs/outputs and their edges stay lit. */
+.react-flow__node,
+.react-flow__edge {
+  transition: opacity 0.2s ease;
+}
+
+.react-flow__node.is-dim {
+  opacity: 0.22;
+}
+
+.react-flow__edge.is-dim {
+  opacity: 0.1;
+}
+
+/* Selected node: a static glow ring whose opacity breathes (compositor-only, one element). */
+.node-pulse {
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    0 0 0 1px rgb(181 116 255 / 0.9),
+    0 0 26px 2px rgb(181 116 255 / 0.55);
+  animation: node-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes node-pulse {
+  50% {
+    opacity: 0.35;
   }
 }
 
@@ -183,10 +309,16 @@ dialog.sheet::backdrop {
     animation: none;
   }
 
-  .flow-dash {
+  .flow-spark {
     animation: none;
     stroke-dasharray: none;
     opacity: 0.35;
+  }
+
+  .node-pulse,
+  .cta-glow::before,
+  .shimmer::after {
+    animation: none;
   }
 
   *,

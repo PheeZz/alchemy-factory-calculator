@@ -10,6 +10,7 @@ import { useNames, useT } from '@/shared/i18n';
 import { Button } from '@/shared/ui/Button';
 import { Icon } from '@/shared/ui/Icon';
 import { SearchCombobox } from '@/shared/ui/SearchCombobox';
+import { burstFrom } from '@/shared/ui/burst';
 
 const DEFAULT_RATE = 60;
 const SUPPLY_RATE = 60;
@@ -72,14 +73,19 @@ function EmptyState({ data, mode, onOpenTargets }: { data: GameData; mode: Facto
         <h2 className="font-display text-2xl text-ink">{t(mode === 'targets' ? 'graph.empty.title' : 'graph.emptyInput.title')}</h2>
         <p className="text-sm text-muted">{t(mode === 'targets' ? 'graph.empty.body' : 'graph.emptyInput.body')}</p>
         {mode === 'targets' ? (
-          <SearchCombobox
-            className="mt-2 w-full text-left"
-            options={options}
-            value={null}
-            label={t('targets.add')}
-            placeholder={t('combobox.placeholder')}
-            onChange={(item) => useFactoryStore.getState().addTarget({ item, rate: DEFAULT_RATE })}
-          />
+          // The one always-running border on screen: this field is the whole first-run task.
+          <div className="cta-glow is-live mt-2 w-full rounded-xl text-left">
+            <SearchCombobox
+              options={options}
+              value={null}
+              label={t('targets.add')}
+              placeholder={t('combobox.placeholder')}
+              onChange={(item) => {
+                burstFrom(document.activeElement);
+                useFactoryStore.getState().addTarget({ item, rate: DEFAULT_RATE });
+              }}
+            />
+          </div>
         ) : (
           <Button className="mt-2 lg:hidden" onClick={onOpenTargets}>
             {t('nav.targets')}
@@ -116,6 +122,7 @@ export function GraphStage({
 
       {!result && status === 'idle' && <EmptyState data={data} mode={mode} onOpenTargets={onOpenTargets} />}
 
+      {status === 'solving' && <div className="shimmer" aria-hidden="true" />}
       {status === 'solving' && (
         <p role="status" className="glass absolute top-3 left-3 z-10 flex items-center gap-2 rounded-full px-3 py-1.5 text-xs text-muted">
           <span className="size-2 animate-pulse rounded-full bg-flow" aria-hidden="true" />

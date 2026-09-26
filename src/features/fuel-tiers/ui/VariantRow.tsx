@@ -28,7 +28,7 @@ function Cell({ label, active, className, children }: { label: string; active?: 
 
 export const VariantRow = forwardRef<
   HTMLLIElement,
-  { data: GameData; variant: FuelVariant; tier: Tier | null; metric: TierMetric; onUse: () => void; layoutId: string }
+  { data: GameData; variant: FuelVariant; tier: Tier | null; metric: TierMetric; onUse: (button: HTMLElement) => void; layoutId: string }
 >(function VariantRow({ data, variant: v, tier, metric, onUse, layoutId }, ref) {
   const t = useT();
   const name = useNames();
@@ -44,7 +44,7 @@ export const VariantRow = forwardRef<
       layout="position"
       transition={{ type: 'spring', stiffness: 420, damping: 38 }}
       className={cx(
-        'relative grid grid-cols-2 gap-x-4 gap-y-3 overflow-hidden rounded-xl border border-line bg-abyss/85 p-3 pl-4 lg:items-center lg:gap-y-0',
+        'relative grid grid-cols-2 gap-x-4 gap-y-3 overflow-hidden rounded-xl border border-line bg-abyss/85 p-3 pl-4 transition-[border-color,box-shadow] duration-200 hover:border-white/20 hover:shadow-[0_0_24px_-12px_var(--color-flow)] lg:items-center lg:gap-y-0',
         ROW_GRID,
       )}
     >
@@ -54,7 +54,9 @@ export const VariantRow = forwardRef<
         <div className="flex min-w-0 items-center gap-2.5">
           <ItemIcon icon={fuel?.icon ?? null} name={fuelName} seed={v.fuel} size={32} decorative />
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-ink">{fuelName}</div>
+            <div className="line-clamp-2 text-sm leading-snug font-semibold text-ink" title={fuelName}>
+              {fuelName}
+            </div>
             <FuelPath data={data} path={v.path} />
           </div>
         </div>
@@ -112,7 +114,7 @@ export const VariantRow = forwardRef<
           <summary className="cursor-pointer text-xs text-flow">{t('tiers.build')}</summary>
           <BuildList data={data} stacks={v.buildCostPer1k} />
         </details>
-        <Button size="sm" variant="primary" onClick={onUse}>
+        <Button size="sm" variant="primary" onClick={(e) => onUse(e.currentTarget)}>
           {t('tiers.use')}
         </Button>
       </div>

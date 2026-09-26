@@ -17,7 +17,9 @@ export function ItemRateList({ data, title, rates }: { data: GameData; title: st
           return (
             <li key={r.item} className="flex items-center gap-2 text-sm">
               <ItemIcon icon={item?.icon ?? null} name={label} seed={r.item} size={22} decorative />
-              <span className="min-w-0 flex-1 truncate">{label}</span>
+              <span className="line-clamp-2 min-w-0 flex-1 leading-snug" title={label}>
+                {label}
+              </span>
               <span className="num text-muted">{t('unit.perMin', { value: formatRate(t.lang, r.perMin) })}</span>
             </li>
           );
