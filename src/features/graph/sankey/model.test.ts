@@ -1,7 +1,7 @@
 import type { SolveResult } from '@/features/solver/types';
 import { demoGameData } from '../fixtures/demo-gamedata';
 import { demoResult } from '../fixtures/demo-result';
-import { layoutFlows, linkPath, toFlows } from './model';
+import { fitLabel, layoutFlows, linkPath, toFlows } from './model';
 
 const edge = (from: string, to: string, item: string, perMin: number) => ({ from, to, item, perMin, belts: 1 });
 const node = (id: string) => ({ ...demoResult.nodes[0]!, id });
@@ -39,7 +39,27 @@ test('hovered link lights its whole upstream and downstream path, not a sibling 
   expect([...linkPath(links, 1)].sort()).toEqual([0, 1, 2]);
 });
 
-test('layout grows past the box when columns would not leave room for labels', () => {
-  const laid = layoutFlows(toFlows(demoGameData, demoResult), 300, 200);
-  expect(laid.width).toBeGreaterThan(300);
+test('node rate is the main product leaving a recipe (byproduct excluded) and the endpoint rate otherwise', () => {
+  const { nodes } = toFlows(demoGameData, demoResult);
+  const plank = nodes.find((n) => n.id === 'n:Plank')!;
+  // Sawmill: 28/0.6·2 Plank to the kilns; the 35/6 Sawdust byproduct must not be added in.
+  expect(plank.item).toBe('Plank');
+  expect(plank.perMin).toBeCloseTo((28 / 0.6) * 2);
+  expect(nodes.find((n) => n.id === 'import:Log')).toMatchObject({ item: 'Log', perMin: 35 / 3 });
+  expect(nodes.find((n) => n.id === 'target:Elixir')).toMatchObject({ item: 'Elixir', perMin: 30 });
+});
+
+test('layout scrolls sideways only when columns would get narrower than a readable minimum', () => {
+  const flows = toFlows(demoGameData, demoResult);
+  expect(layoutFlows(flows, 300, 200).width).toBeGreaterThan(300);
+  const wide = layoutFlows(flows, 1400, 500);
+  expect(wide.width).toBe(1400);
+  expect(wide.labelRoom).toBeGreaterThan(100);
+});
+
+test('labels shorten the name, never the rate, to fit the gap between columns', () => {
+  expect(fitLabel('Камень', '300/мин', 200)).toBe('Камень');
+  const cut = fitLabel('Порошок негашеной извести', '300/мин', 110);
+  expect(cut.endsWith('…')).toBe(true);
+  expect((cut.length + 1 + '300/мин'.length) * 6.8).toBeLessThanOrEqual(110);
 });
