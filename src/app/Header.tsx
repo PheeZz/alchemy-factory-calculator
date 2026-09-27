@@ -125,7 +125,7 @@ function SearchButton() {
       className="flex h-10 items-center gap-2 rounded-xl border border-line bg-white/[0.03] px-2.5 text-sm text-muted transition-colors hover:border-flow/50 hover:text-ink"
     >
       <Icon name="search" size={17} />
-      <kbd className="hidden rounded-md border border-line px-1.5 py-0.5 font-sans text-[11px] text-faint lg:inline">{MOD_KEY} K</kbd>
+      <kbd className="hidden rounded-md border border-line px-1.5 py-0.5 font-sans text-[11px] text-faint min-[1400px]:inline">{MOD_KEY} K</kbd>
     </button>
   );
 }
@@ -136,10 +136,10 @@ export function Header({ buildId }: { buildId: string }) {
   const onShare = () =>
     copyShareLink(buildId, factory).then((ok) => toast(t(ok ? 'share.copied' : 'share.copyFailed'), ok ? 'info' : 'error'));
   return (
-    <header className="flex flex-wrap items-center gap-x-2 gap-y-2 border-b sm:gap-x-3 border-line/70 bg-void/40 px-3 py-2 backdrop-blur-md lg:gap-4 lg:px-5">
+    <header className="flex flex-wrap items-center gap-x-2 gap-y-2 border-b sm:gap-x-3 border-line/70 bg-void/40 px-3 py-2 backdrop-blur-md lg:gap-3 lg:px-5 min-[1400px]:gap-4">
       <div className="flex min-w-0 items-center gap-2.5">
         <Sigil />
-        <h1 className="sr-only min-w-0 leading-none sm:not-sr-only">
+        <h1 className="sr-only min-w-0 leading-none sm:not-sr-only lg:max-[1399px]:sr-only">
           <span className="block truncate font-display text-lg text-ink lg:text-xl">{t('brand.title')}</span>
           <span className="hidden text-xs text-muted sm:block">{t('brand.subtitle')}</span>
         </h1>
@@ -147,7 +147,7 @@ export function Header({ buildId }: { buildId: string }) {
       <ViewSwitch />
       {/* Phones: switcher + units take their own row; beside the other controls they shrank to nothing. */}
       <div className="order-last flex w-full items-center gap-2 sm:order-none sm:w-auto">
-        <FactorySwitcher className="min-w-0 flex-1 sm:w-56 sm:flex-none" />
+        <FactorySwitcher className="min-w-0 flex-1 sm:w-56 sm:flex-none lg:w-44 min-[1400px]:w-56" />
         <UnitsToggle />
         {/* Phones: language joins this row so the first one fits in 390px (display:none hides the twin from AT). */}
         <div className="sm:hidden">
