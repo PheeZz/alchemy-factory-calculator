@@ -42,6 +42,15 @@ const GRAPH_OPTIONS: LayoutOptions = {
   'elk.padding': '[top=24,left=24,bottom=24,right=24]',
 };
 
+// Compound layout (building groups): edges are routed across group borders and reported in root
+// coordinates, which is what FlowEdge draws in; nodes stay relative to their parent, as in React Flow.
+const HIERARCHY_OPTIONS: LayoutOptions = {
+  'elk.hierarchyHandling': 'INCLUDE_CHILDREN',
+  'elk.json.edgeCoords': 'ROOT',
+};
+/** Room at the top of a group frame for its building label. */
+const GROUP_OPTIONS: LayoutOptions = { 'elk.padding': '[top=44,left=16,bottom=16,right=16]' };
+
 const LABEL_HEIGHT = 22;
 
 /**
@@ -56,7 +65,8 @@ function yOnRoute(points: ElkPoint[], x: number): number | undefined {
   return undefined;
 }
 
-/** Layered left→right; ELK also routes edges and reserves room for their labels. */
+/** Layered left→right; ELK also routes edges and reserves room for their labels. Nodes with a
+ * `parentId` are laid out inside their parent (a `building` group node sized by ELK). */
 export async function layoutGraph<N extends GraphNode>(
   nodes: N[],
   edges: GraphEdge[],
@@ -64,18 +74,26 @@ export async function layoutGraph<N extends GraphNode>(
   /** Snake the chain into rows of about this width/height ratio (only used for chains too long to fit). */
   wrapAspect?: number,
 ): Promise<{ nodes: N[]; routes: Map<string, EdgeRoute>; fallback: boolean }> {
+  const kids = new Map<string | undefined, N[]>();
+  for (const n of nodes) kids.set(n.parentId, [...(kids.get(n.parentId) ?? []), n]);
+  const toElk = (n: N): ElkNode =>
+    n.type === 'building'
+      ? { id: n.id, layoutOptions: GROUP_OPTIONS, children: (kids.get(n.id) ?? []).map(toElk) }
+      : {
+          id: n.id,
+          width: n.width,
+          height: n.height,
+          // Targets close the chain on the right edge; sources are left free (see GRAPH_OPTIONS).
+          layoutOptions: (n.type === 'target' ? { 'elk.layered.layering.layerConstraint': 'LAST' } : {}) as LayoutOptions,
+        };
   const graph: ElkNode = {
     id: 'root',
-    layoutOptions: wrapAspect
-      ? { ...GRAPH_OPTIONS, 'elk.layered.wrapping.strategy': 'MULTI_EDGE', 'elk.aspectRatio': String(wrapAspect) }
-      : GRAPH_OPTIONS,
-    children: nodes.map((n) => ({
-      id: n.id,
-      width: n.width,
-      height: n.height,
-      // Targets close the chain on the right edge; sources are left free (see GRAPH_OPTIONS).
-      layoutOptions: (n.type === 'target' ? { 'elk.layered.layering.layerConstraint': 'LAST' } : {}) as LayoutOptions,
-    })),
+    layoutOptions: {
+      ...GRAPH_OPTIONS,
+      ...(kids.size > 1 ? HIERARCHY_OPTIONS : {}),
+      ...(wrapAspect ? { 'elk.layered.wrapping.strategy': 'MULTI_EDGE', 'elk.aspectRatio': String(wrapAspect) } : {}),
+    },
+    children: (kids.get(undefined) ?? []).map(toElk),
     edges: edges.map(
       (e): ElkExtendedEdge => ({
         id: e.id,
@@ -103,9 +121,12 @@ export async function layoutGraph<N extends GraphNode>(
     const dead = elk;
     elk = null;
     void dead?.then((e) => e.terminateWorker(), () => undefined);
-    return { nodes: fallbackLayout(nodes, edges), routes: new Map(), fallback: true };
+    const flat = nodes.filter((n) => n.type !== 'building').map((n) => ({ ...n, parentId: undefined }));
+    return { nodes: fallbackLayout(flat, edges), routes: new Map(), fallback: true };
   }
-  const pos = new Map(laid.children?.map((c) => [c.id, { x: c.x ?? 0, y: c.y ?? 0 }]));
+  const boxes = new Map<string, ElkNode>();
+  const collect = (n: ElkNode) => n.children?.forEach((c) => (boxes.set(c.id, c), collect(c)));
+  collect(laid);
   const routes = new Map<string, EdgeRoute>();
   for (const e of (laid.edges ?? []) as ElkExtendedEdge[]) {
     const s = e.sections?.[0];
@@ -115,7 +136,13 @@ export async function layoutGraph<N extends GraphNode>(
     const x = l?.x !== undefined ? l.x + (l.width ?? 0) / 2 : undefined;
     routes.set(e.id, { points, label: x === undefined ? null : { x, y: yOnRoute(points, x) ?? l!.y! + (l!.height ?? 0) / 2 } });
   }
-  return { nodes: nodes.map((n) => ({ ...n, position: pos.get(n.id) ?? n.position })), routes, fallback: false };
+  const placed = nodes.map((n) => {
+    const b = boxes.get(n.id);
+    if (!b) return n;
+    const position = { x: b.x ?? 0, y: b.y ?? 0 };
+    return n.type === 'building' ? { ...n, position, width: b.width, height: b.height } : { ...n, position };
+  });
+  return { nodes: placed, routes, fallback: false };
 }
 
 /**
@@ -160,8 +187,11 @@ export async function layoutForView<N extends GraphNode>(
   labelWidth: (e: GraphEdge) => number,
   view: { width: number; height: number },
 ) {
+  // Children sit relative to their group, so only top-level boxes give the drawing's extent.
+  const fits = (laid: N[]) => fitZoom(boundsOf(laid.filter((n) => !n.parentId)), view) >= fitFloor(view);
   const flat = { ...(await layoutGraph(nodes, edges, labelWidth)), wrapped: false };
-  if (flat.fallback || fitZoom(boundsOf(flat.nodes), view) >= fitFloor(view)) return flat;
+  // ponytail: grouped layouts are never wrapped; try ELK wrapping with compound nodes if grouped chains get too long.
+  if (flat.fallback || fits(flat.nodes) || nodes.some((n) => n.parentId)) return flat;
   const wrapped = { ...(await layoutGraph(nodes, edges, labelWidth, view.width / view.height)), wrapped: true };
-  return !wrapped.fallback && fitZoom(boundsOf(wrapped.nodes), view) >= fitFloor(view) ? wrapped : flat;
+  return !wrapped.fallback && fits(wrapped.nodes) ? wrapped : flat;
 }

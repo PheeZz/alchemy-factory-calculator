@@ -9,3 +9,6 @@ export function useGraphData() {
   if (!data) throw new Error('GraphDataContext is missing');
   return data;
 }
+
+// Node-level controls that change the whole graph (folding a branch) reach the view the same way.
+export const GraphActionsContext = createContext<{ toggleBranch: (id: string) => void } | null>(null);

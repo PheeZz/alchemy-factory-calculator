@@ -10,8 +10,9 @@ import { ItemIcon } from '@/shared/ui/ItemIcon';
 import { Tooltip } from '@/shared/ui/Tooltip';
 import { useGraphData } from '../context';
 import type { RecipeFlowNode } from '../elements';
+import { BranchControl } from './BranchControl';
 
-export const RecipeNode = memo(function RecipeNode({ data: { node, loops, feeds }, selected }: NodeProps<RecipeFlowNode>) {
+export const RecipeNode = memo(function RecipeNode({ data: { node, loops, feeds, branch }, selected }: NodeProps<RecipeFlowNode>) {
   const t = useT();
   const name = useNames();
   const data = useGraphData();
@@ -35,6 +36,7 @@ export const RecipeNode = memo(function RecipeNode({ data: { node, loops, feeds 
       )}
     >
       {selected && <span className="node-pulse" aria-hidden="true" />}
+      <BranchControl id={node.id} branch={branch} />
       <Handle type="target" position={Position.Left} isConnectable={false} />
       <div className="flex items-center gap-2.5">
         <span className="relative shrink-0">
