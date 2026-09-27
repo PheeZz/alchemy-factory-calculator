@@ -4,6 +4,7 @@ import { usePalette } from '@/features/command-palette/model/usePalette';
 import { redo, undo } from '@/features/factory/history';
 import { CommandPalette } from '@/features/command-palette/ui/CommandPalette';
 import { ItemCard } from '@/features/item-card/ui/ItemCard';
+import { ComparePage } from '@/features/compare/ui/ComparePage';
 import { FuelTiersPage } from '@/features/fuel-tiers/ui/FuelTiersPage';
 import { NetworkPage } from '@/features/network/ui/NetworkPage';
 import { ProfitPage } from '@/features/profit-tiers/ui/ProfitPage';
@@ -51,6 +52,8 @@ export function AppShell({ data, locale }: { data: GameData; locale: GameLocale 
           <TechPage data={data} />
         ) : view === 'network' ? (
           <NetworkPage data={data} />
+        ) : view === 'compare' ? (
+          <ComparePage data={data} />
         ) : (
           <CalculatorPage data={data} />
         )}

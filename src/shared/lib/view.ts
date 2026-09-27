@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export const APP_VIEWS = ['calculator', 'fuel', 'profit', 'tech', 'network'] as const;
+export const APP_VIEWS = ['calculator', 'fuel', 'profit', 'tech', 'network', 'compare'] as const;
 export type AppView = (typeof APP_VIEWS)[number];
 
 const fromUrl = (): AppView => {
