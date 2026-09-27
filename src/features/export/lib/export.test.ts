@@ -1,10 +1,11 @@
 // @vitest-environment node
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, test } from 'vitest';
 import { buildList, solve } from '@/features/solver';
 import { level0, plan } from '@/features/solver/fixtures/builders';
 import { heatersData } from '@/features/solver/fixtures/heaters';
 import { buildListCsv, toCsv } from './csv';
 import { planMarkdown } from './markdown';
+import { safeFileName } from './download';
 
 const names = (id: string) => ({ Stove: 'Stone Stove', Crucible: 'Crucible', Stone: 'Stone', Ore: 'Ore', Coal: 'Coal', Ingot: 'Iron Ingot' })[id] ?? id;
 
@@ -44,4 +45,9 @@ describe('planMarkdown', () => {
     expect(text).toContain('## Heat\n48 heat/s');
     expect(text).toContain('## Area\n3 floor tiles, 15 cells');
   });
+});
+
+test('file names drop characters the OS rejects and fall back when nothing is left', () => {
+  expect(safeFileName('Завод: медь/железо?', 'csv')).toBe('Завод медь железо.csv');
+  expect(safeFileName(' ... ', 'md')).toBe('factory.md');
 });

@@ -5,6 +5,7 @@ import { useT } from '@/shared/i18n';
 import { formatNumber } from '@/shared/lib/format';
 import { CountUp } from '@/shared/ui/CountUp';
 import { Coins } from '@/shared/ui/Coins';
+import { ExportButtons } from '@/features/export/ui/ExportButtons';
 import { BuildChecklist } from './BuildChecklist';
 import { ByproductOptions } from './ByproductOptions';
 import { itemRow, StackList, type SummaryRow } from './StackList';
@@ -85,6 +86,9 @@ export function SummaryContent({ data, result }: { data: GameData; result: Solve
     <div className="mt-5 grid gap-x-8 gap-y-5 border-t border-line pt-4 @3xl:grid-cols-2">
       <Block title={t('build.title')}>
         <BuildChecklist data={data} result={result} />
+        <div className="mt-3">
+          <ExportButtons data={data} result={result} />
+        </div>
       </Block>
       <Block title={t('byproduct.title')}>
         <ByproductOptions data={data} result={result} />
