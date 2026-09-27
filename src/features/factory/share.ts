@@ -1,6 +1,7 @@
 import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from 'lz-string';
 import { isFactoryDraft, type FactoryDraft } from './schema';
 import { useFactoryStore } from './store';
+import { hrefWithLang } from '@/shared/i18n';
 
 const PREFIX = '#s=';
 const VERSION = 1;
@@ -44,9 +45,12 @@ export function importShareHash(hash: string): ShareDecode {
   return decoded;
 }
 
-/** Link to the current page; the view switch is dropped so a shared factory opens in the calculator. */
+/**
+ * Link to the current page in the sender's language; the view switch is dropped so a shared
+ * factory opens in the calculator.
+ */
 export function shareUrl(build: string, factory: FactoryDraft) {
-  const url = new URL(location.href);
+  const url = new URL(hrefWithLang(location.href));
   url.searchParams.delete('view');
   url.hash = encodeShare(build, factory);
   return url.toString();

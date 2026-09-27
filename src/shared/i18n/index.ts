@@ -7,6 +7,7 @@ import { syncAcrossTabs } from '@/shared/lib/syncAcrossTabs';
 import { fromPerMin, toPerMin, useUnitStore } from '@/shared/lib/units';
 import { ru } from './ru';
 import { en } from './en';
+import { langFromUrl, pickLang, withLang } from './url';
 
 export type Lang = 'ru' | 'en';
 export type DictKey = keyof typeof ru;
@@ -14,23 +15,41 @@ export type Dict = Record<DictKey, string>;
 
 const dicts: Record<Lang, Dict> = { ru, en };
 
-function detectLang(): Lang {
-  if (typeof navigator === 'undefined') return 'ru';
-  return navigator.language.toLowerCase().startsWith('en') ? 'en' : 'ru';
-}
+const BASE = import.meta.env.BASE_URL;
+const urlLang = () => (typeof location === 'undefined' ? null : langFromUrl(location.href, BASE));
+const detectLang = (saved: Lang | null) =>
+  pickLang(urlLang(), saved, typeof navigator === 'undefined' ? '' : navigator.language);
 
 // Kept separate from the factory store so i18n has no dependency on features.
 export const useLangStore = create<{ lang: Lang; setLang: (lang: Lang) => void }>()(
   persist(
     (set) => ({
-      lang: detectLang(),
+      lang: detectLang(null),
       setLang: (lang) => set({ lang }),
     }),
-    { name: 'afc:lang', version: 1, partialize: (s) => ({ lang: s.lang }) },
+    {
+      name: 'afc:lang',
+      version: 1,
+      partialize: (s) => ({ lang: s.lang }),
+      // Re-read on every rehydrate (also cross-tab), so a tab opened by an explicit ?lang link keeps it.
+      merge: (saved, current) => ({ ...current, lang: detectLang((saved as { lang?: Lang } | undefined)?.lang ?? null) }),
+    },
   ),
 );
 
+// An explicit URL language is remembered: set() is what writes to storage, hydration does not.
+if (urlLang()) useLangStore.setState({ lang: useLangStore.getState().lang });
+
 syncAcrossTabs('afc:lang', () => useLangStore.persist.rehydrate());
+
+if (typeof location !== 'undefined') {
+  useLangStore.subscribe((s, prev) => {
+    if (s.lang !== prev.lang) history.replaceState(history.state, '', withLang(location.href, s.lang, BASE));
+  });
+}
+
+/** Current page with the language pinned, for links that leave this tab. */
+export const hrefWithLang = (href: string) => withLang(href, useLangStore.getState().lang, BASE);
 
 /** `{name}` placeholders are replaced from params. */
 export function translate(lang: Lang, key: DictKey, params?: Record<string, string | number>): string {
