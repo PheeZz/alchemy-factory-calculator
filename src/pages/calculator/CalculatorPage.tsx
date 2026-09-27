@@ -1,4 +1,4 @@
-import { VisitBadge } from '@/features/visits/VisitBadge';
+import { SiteInfo } from '@/features/visits/SiteInfo';
 import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import type { GameData } from '@/shared/data/types';
@@ -64,10 +64,7 @@ export function CalculatorPage({ data }: { data: GameData }) {
           <FactoryList data={data} />
           {controls}
           <UpgradesPanel data={data} />
-          <div className="mt-auto flex flex-wrap items-center justify-between gap-2 px-1 pb-1">
-            <p className="text-[11px] text-faint">{t('game.version', { version: data.build.version, build: data.build.id })}</p>
-            <VisitBadge />
-          </div>
+          <SiteInfo data={data} />
         </aside>
 
         <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
@@ -107,6 +104,7 @@ export function CalculatorPage({ data }: { data: GameData }) {
         <div className="flex flex-col gap-3">
           <FactoryList data={data} />
           {controls}
+          <SiteInfo data={data} />
         </div>
       </Sheet>
       <Sheet open={sheet === 'upgrades'} onClose={() => setSheet(null)} title={t('nav.upgrades')}>
