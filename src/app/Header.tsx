@@ -1,3 +1,4 @@
+import type { GameData } from '@/shared/data/types';
 import { FactorySwitcher } from '@/features/factory/FactorySwitcher';
 import { useLangStore, useT, type Lang } from '@/shared/i18n';
 import { cx } from '@/shared/lib/cx';
@@ -130,14 +131,14 @@ function SearchButton() {
   );
 }
 
-export function Header({ buildId }: { buildId: string }) {
+export function Header({ build }: { build: GameData['build'] }) {
   const t = useT();
   const factory = useActiveFactory();
   const onShare = () =>
-    copyShareLink(buildId, factory).then((ok) => toast(t(ok ? 'share.copied' : 'share.copyFailed'), ok ? 'info' : 'error'));
+    copyShareLink(build.id, factory).then((ok) => toast(t(ok ? 'share.copied' : 'share.copyFailed'), ok ? 'info' : 'error'));
   return (
     <header className="flex flex-wrap items-center gap-x-2 gap-y-2 border-b sm:gap-x-3 border-line/70 bg-void/40 px-3 py-2 backdrop-blur-md lg:gap-3 lg:px-5 min-[1400px]:gap-4">
-      <div className="flex min-w-0 items-center gap-2.5">
+      <div className="flex min-w-0 items-center gap-2.5" title={t('game.version', { version: build.version, build: build.id })}>
         <Sigil />
         <h1 className="sr-only min-w-0 leading-none sm:not-sr-only lg:max-[1399px]:sr-only">
           <span className="block truncate font-display text-lg text-ink lg:text-xl">{t('brand.title')}</span>

@@ -4,6 +4,7 @@ export const ru = {
   'brand.title': 'Alchemy Factory',
   'brand.subtitle': 'калькулятор цепочек',
 
+  'game.version': 'Данные игры: v{version} (build {build})',
   'header.factory': 'Текущий завод',
   'header.lang': 'Язык интерфейса',
   'header.share': 'Поделиться ссылкой на завод',

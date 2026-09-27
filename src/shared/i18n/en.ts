@@ -5,6 +5,7 @@ export const en: Dict = {
   'brand.title': 'Alchemy Factory',
   'brand.subtitle': 'chain calculator',
 
+  'game.version': 'Game data: v{version} (build {build})',
   'header.factory': 'Current factory',
   'header.lang': 'Interface language',
   'header.share': 'Share a link to this factory',
