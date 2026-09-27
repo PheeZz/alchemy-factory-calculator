@@ -20,7 +20,7 @@ export interface SolveState {
 
 const DEBOUNCE_MS = 150;
 
-const hasWork = (plan: FactoryPlan) =>
+export const hasWork = (plan: FactoryPlan) =>
   plan.mode === 'targets' ? plan.targets.some((t) => t.rate > 0) : plan.maximize !== null;
 
 export const toErrorInfo = (e: unknown): SolveErrorInfo =>

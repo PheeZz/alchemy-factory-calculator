@@ -27,6 +27,7 @@ const PATHS = {
   flask: 'M9 3h6M10 3v6L4.5 19a1.5 1.5 0 001.3 2h12.4a1.5 1.5 0 001.3-2L14 9V3',
   upload: 'M12 20V9M7 14l5-5 5 5M4 5h16',
   infinity: 'M7.5 15.5a3.5 3.5 0 110-7c3 0 6 7 9 7a3.5 3.5 0 100-7c-3 0-6 7-9 7z',
+  swap: 'M4 8h14M14 4l4 4-4 4M20 16H6M10 12l-4 4 4 4',
 } as const;
 
 export type IconName = keyof typeof PATHS;

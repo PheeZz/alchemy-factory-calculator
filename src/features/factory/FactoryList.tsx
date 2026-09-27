@@ -9,6 +9,7 @@ import { GlowBadge } from '@/shared/ui/GlowBadge';
 import { Icon } from '@/shared/ui/Icon';
 import { toast } from '@/shared/ui/Toast';
 import { Tooltip } from '@/shared/ui/Tooltip';
+import { openCompare } from '@/features/compare/model/useCompareStore';
 import { downloadExport, importFile } from './io';
 import { sanitizePlan } from './stale';
 import { useActiveFactory, useFactoryStore, type Factory } from './store';
@@ -116,6 +117,15 @@ export function FactoryList({ data }: { data: GameData }) {
                   <span className={cx('size-1.5 shrink-0 rounded-full', active ? 'bg-arcane shadow-[0_0_8px_var(--color-arcane)]' : 'bg-white/20')} />
                   <span className="truncate">{f.name}</span>
                 </button>
+              )}
+              {!active && (
+                <IconButton
+                  icon="swap"
+                  size="sm"
+                  label={t('compare.open')}
+                  className="border-transparent bg-transparent"
+                  onClick={() => openCompare(f.id)}
+                />
               )}
               {active && editing !== f.id && (
                 <span className="flex">

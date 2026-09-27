@@ -4,10 +4,11 @@ import { ensureBoilerFuel } from '@/features/factory/fuelActions';
 import { isSteamLike } from '@/features/factory/steam';
 import { useActivePlan, useFactoryStore } from '@/features/factory/store';
 import type { SolveErrorInfo, SolveState } from '@/features/factory/useSolve';
+import { useErrorMessage } from '@/features/factory/useErrorMessage';
 import { GraphView } from '@/features/graph/GraphView';
 import { RequiredTech } from '@/features/tech/ui/RequiredTech';
 import { useItemOptions } from '@/features/target-picker/useItemOptions';
-import { useNames, useT } from '@/shared/i18n';
+import { useT } from '@/shared/i18n';
 import { Button } from '@/shared/ui/Button';
 import { Icon } from '@/shared/ui/Icon';
 import { SearchCombobox } from '@/shared/ui/SearchCombobox';
@@ -18,18 +19,8 @@ const SUPPLY_RATE = 60;
 
 function ErrorCard({ data, error, mode }: { data: GameData; error: SolveErrorInfo; mode: FactoryPlan['mode'] }) {
   const t = useT();
-  const name = useNames();
-  const item = error.item ? name(data.items[error.item]?.nameKey ?? error.item) : '';
   const steam = error.code === 'invalidInput' && isSteamLike(data.items[error.item ?? '']);
-  const message = error.requiredTech?.length
-    ? t('error.needsTech', { item })
-    : steam
-    ? t('error.steamBoiler')
-    : error.code === 'infeasible' && error.item
-      ? t('error.infeasibleItem', { item })
-      : error.code === 'unreachable' && !error.item
-        ? t('error.infeasible')
-        : t(`error.${error.code}`, { item });
+  const message = useErrorMessage(data, error);
   // An item the chain cannot make is fixed by bringing it in: unlimited import in targets mode,
   // a bounded supply in fromInput mode (where only supplies and imports feed the factory).
   const canFix = !!error.item && (error.code === 'unreachable' || error.code === 'infeasible');

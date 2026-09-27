@@ -136,7 +136,7 @@ export function Header({ buildId }: { buildId: string }) {
   const onShare = () =>
     copyShareLink(buildId, factory).then((ok) => toast(t(ok ? 'share.copied' : 'share.copyFailed'), ok ? 'info' : 'error'));
   return (
-    <header className="flex flex-wrap items-center gap-x-2 gap-y-2 border-b sm:gap-x-3 border-line/70 bg-void/40 px-3 py-2 backdrop-blur-md lg:gap-6 lg:px-5">
+    <header className="flex flex-wrap items-center gap-x-2 gap-y-2 border-b sm:gap-x-3 border-line/70 bg-void/40 px-3 py-2 backdrop-blur-md lg:gap-4 lg:px-5">
       <div className="flex min-w-0 items-center gap-2.5">
         <Sigil />
         <h1 className="sr-only min-w-0 leading-none sm:not-sr-only">
