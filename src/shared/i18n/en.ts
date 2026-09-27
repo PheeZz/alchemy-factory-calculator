@@ -130,7 +130,7 @@ export const en: Dict = {
   'error.title': 'Could not calculate',
   'error.unreachable': '“{item}” cannot be produced: no available recipe and it is not a raw resource.',
   'error.infeasible': 'Targets cannot be met with the current inputs and limits.',
-  'error.infeasibleItem': '“{item}” cannot be made in the needed amount with the chosen recipes and inputs.',
+  'error.infeasibleItem': '“{item}” cannot be made in the needed amount with the chosen recipes, inputs and machine limits.',
   'error.unbounded': 'The problem is unbounded — check inputs and the item to maximize.',
   'error.timeout': 'The calculation took too long. Simplify the factory and try again.',
   'error.invalidInput': 'The factory has invalid data: check targets and rates.',
