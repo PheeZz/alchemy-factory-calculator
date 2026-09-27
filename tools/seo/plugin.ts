@@ -4,7 +4,7 @@ import type { Plugin, ResolvedConfig } from 'vite';
 import { notFoundPage, renderIndex, robots, sitemap, type SeoContext } from './render';
 
 /** The game version comes from the data the app ships, so it is never typed in by hand. */
-async function gameBuild(publicDir: string): Promise<{ id: string; version: string }> {
+export async function gameBuild(publicDir: string): Promise<{ id: string; version: string }> {
   const { current } = JSON.parse(await readFile(join(publicDir, 'data/index.json'), 'utf8')) as { current: string };
   const data = JSON.parse(await readFile(join(publicDir, `data/${current}/gamedata.json`), 'utf8')) as {
     build: { id: string; version: string };

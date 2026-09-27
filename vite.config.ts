@@ -3,9 +3,7 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { fileURLToPath, URL } from 'node:url';
 import { seo } from './tools/seo/plugin';
-
-// The one absolute address of the site: canonical, hreflang, og:image, sitemap and robots derive from it.
-const SITE_URL = process.env.SITE_URL ?? 'https://pheezz.github.io/alchemy-factory-calculator/';
+import { SITE_URL } from './tools/seo/site';
 
 export default defineConfig({
   // GitHub Pages serves from /<repo>/; set BASE_PATH in CI, root locally
