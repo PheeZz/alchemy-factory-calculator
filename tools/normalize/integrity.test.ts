@@ -59,6 +59,17 @@ describe('gamedata.json referential integrity', () => {
     for (const r of rows) expect(r.buildings).toContain('AdvancedAthanor');
   });
 
+  it('sale bonuses: one licence line per shop category plus the store-wide one', () => {
+    const bonuses = data.saleBonuses ?? [];
+    const covered = bonuses.flatMap((b) => (b.sellTypes === 'all' ? [] : b.sellTypes)).sort();
+    expect(covered).toEqual(['artcrafts', 'groceries', 'jewelry', 'liquid', 'remedies']);
+    expect(bonuses.filter((b) => b.sellTypes === 'all').map((b) => b.id)).toEqual(['StoreProfit']);
+    for (const b of bonuses) {
+      expect(b.values).toHaveLength(b.maxLevel + 1);
+      expect(b.nameKey in locales.en).toBe(true);
+    }
+  });
+
   it('every nameKey exists in both locales; ≥ 98 % real text for what non-special recipes use', () => {
     const keys = [...Object.values(data.items), ...Object.values(data.buildings), ...data.upgrades, ...Object.values(data.recipes)].map((x) => x.nameKey);
     for (const locale of Object.values(locales)) expect(keys.filter((k) => !(k in locale))).toEqual([]);

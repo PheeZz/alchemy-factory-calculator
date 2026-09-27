@@ -3,7 +3,9 @@ import { useLangStore, useT, type Lang } from '@/shared/i18n';
 import { cx } from '@/shared/lib/cx';
 import { copyShareLink } from '@/features/factory/share';
 import { useActiveFactory } from '@/features/factory/store';
-import { useViewStore, type AppView } from '@/shared/lib/view';
+import { APP_VIEWS, useViewStore, type AppView } from '@/shared/lib/view';
+import { Select } from '@/shared/ui/Select';
+import { redo, undo, useHistory } from '@/features/factory/history';
 import { toast } from '@/shared/ui/Toast';
 import { Icon } from '@/shared/ui/Icon';
 import { RATE_UNITS, useUnitStore } from '@/shared/lib/units';
@@ -40,8 +42,22 @@ function ViewSwitch() {
   const t = useT();
   const { view, setView } = useViewStore();
   return (
-    <nav aria-label={t('nav.views')} className="flex rounded-xl border border-line bg-void/50 p-0.5">
-      {(['calculator', 'fuel'] as AppView[]).map((v) => (
+    <nav aria-label={t('nav.views')} className="min-w-0">
+      {/* Phones: five sections do not fit as buttons; a native select keeps them one tap away. */}
+      <Select
+        aria-label={t('nav.views')}
+        value={view}
+        onChange={(e) => setView(e.target.value as AppView)}
+        className="w-40 sm:hidden"
+      >
+        {APP_VIEWS.map((v) => (
+          <option key={v} value={v}>
+            {t(`nav.${v}`)}
+          </option>
+        ))}
+      </Select>
+      <div className="hidden rounded-xl border border-line bg-void/50 p-0.5 sm:flex">
+      {APP_VIEWS.map((v) => (
         <button
           key={v}
           type="button"
@@ -55,7 +71,21 @@ function ViewSwitch() {
           {t(`nav.${v}`)}
         </button>
       ))}
+      </div>
     </nav>
+  );
+}
+
+/** Undo/redo buttons; the shortcuts live in AppShell. */
+function HistoryButtons() {
+  const t = useT();
+  const { past, future } = useHistory();
+  const undoable = (past.at(-1)?.factories.length ?? 0) > 0;
+  return (
+    <div className="flex gap-1">
+      <IconButton icon="undo" size="sm" label={`${t('history.undo')} (${MOD_KEY}+Z)`} disabled={!undoable} onClick={undo} />
+      <IconButton icon="redo" size="sm" label={`${t('history.redo')} (${MOD_KEY}+Shift+Z)`} disabled={future.length === 0} onClick={redo} />
+    </div>
   );
 }
 
@@ -125,6 +155,7 @@ export function Header({ buildId }: { buildId: string }) {
         </div>
       </div>
       <div className="ml-auto flex items-center gap-2">
+        <HistoryButtons />
         <SearchButton />
         <div className="hidden sm:block">
           <LangToggle />

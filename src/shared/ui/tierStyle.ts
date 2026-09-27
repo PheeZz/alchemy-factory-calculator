@@ -1,4 +1,4 @@
-import type { Tier } from '../lib/tiers';
+import type { Tier } from '@/shared/lib/tiers';
 
 // S glows and pulses (the one accent on the page); C/D are muted so weak options recede.
 export const TIER_STYLE: Record<Tier, { color: string; badge: string; bar: string }> = {

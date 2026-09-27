@@ -84,7 +84,7 @@ function producerIndex(data: GameData, gate: TechGate): Map<ItemId, Recipe[]> {
  * and the effect reshapes the batch — unstable/resonant swap in the recipe's alternative output mix,
  * fertile doubles the outputs, eternal drops the material inputs. One catalyst per node.
  */
-function withCatalyst(data: GameData, r: Recipe, item: ItemId | undefined) {
+export function withCatalyst(data: GameData, r: Recipe, item: ItemId | undefined) {
   const spec = item ? data.catalysts?.find((c) => c.item === item) : undefined;
   if (!r.catalyst || !spec) return { inputs: r.inputs, outputs: r.outputs as Stack[], catalyst: null };
   const catalyst = { item: spec.item, qty: r.catalyst.cost / spec.charges };

@@ -137,3 +137,30 @@ test('heater actions set and reset plan-wide and per-node heaters; clearOverride
   s.clearOverrides();
   expect(active().plan.heaterFor).toEqual({});
 });
+
+test('plan-level catalyst and machine-cap choices; negative caps are dropped; built checklist toggles', () => {
+  const s = useFactoryStore.getState();
+  s.setCatalystFor('GoldDust3', 'Catalyst3');
+  s.setMachineCap('GoldDust3', 4);
+  s.setMachineCap('Coke', -1);
+  expect(active().plan.catalystFor).toEqual({ GoldDust3: 'Catalyst3' });
+  expect(active().plan.machineCaps).toEqual({ GoldDust3: 4 });
+  s.setMachineCap('GoldDust3', null);
+  expect(active().plan.machineCaps).toEqual({});
+  s.toggleBuilt('Crucible');
+  expect(active().built).toEqual(['Crucible']);
+  s.toggleBuilt('Crucible');
+  expect(active().built).toEqual([]);
+});
+
+test('learned tech is a persisted player profile; null means everything open', async () => {
+  const s = useFactoryStore.getState();
+  expect(s.unlocked).toBeNull();
+  s.setUnlocked(['Level1']);
+  const raw = localStorage.getItem(STORAGE_KEY)!;
+  useFactoryStore.setState({ unlocked: null });
+  localStorage.setItem(STORAGE_KEY, raw);
+  await useFactoryStore.persist.rehydrate();
+  expect(useFactoryStore.getState().unlocked).toEqual(['Level1']);
+  s.setUnlocked(null);
+});

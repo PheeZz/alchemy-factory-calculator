@@ -13,7 +13,10 @@ import { ItemRateList } from './ItemRateList';
 import { MachineStats } from './MachineStats';
 import { NodeOverrides } from './NodeOverrides';
 import { recipeRates } from './rates';
+import { suppliersOf } from '@/features/network/lib/network';
 import { RecipeChoice } from './RecipeChoice';
+import { CatalystSelect } from './CatalystSelect';
+import { MachineCap } from './MachineCap';
 import { resolveSelection } from './selection';
 
 interface Props {
@@ -77,7 +80,7 @@ function RecipeInspector({
   const out = produced ?? mainOutput(recipe);
   const outItem = out ? data.items[out.item] : undefined;
   const outName = outItem ? name(outItem.nameKey) : recipeId;
-  const rates = node && recipeRates(recipe, node, upgradeValue(data, 'alchemySkill', levels.alchemySkill));
+  const rates = node && recipeRates(data, recipe, node, upgradeValue(data, 'alchemySkill', levels.alchemySkill));
   const itemName = (id: string) => name(data.items[id]?.nameKey ?? id);
   const buildingName = (id: string) => name(data.buildings[id]?.nameKey ?? id);
 
@@ -101,7 +104,7 @@ function RecipeInspector({
           })}
         </p>
       )}
-      {node && (node.fuel || node.fertilizer || node.heater) && (
+      {node && (node.fuel || node.fertilizer || node.heater || node.catalyst) && (
         <ul className="flex flex-col gap-1.5 text-sm">
           {node.fuel && (
             <li className="flex items-center gap-2 text-ember">
@@ -125,6 +128,12 @@ function RecipeInspector({
                 need: building?.heatSlotsRequired ?? 0,
                 slots: data.buildings[node.heater.building]?.heatSlots ?? 0,
               })}
+            </li>
+          )}
+          {node.catalyst && (
+            <li className="flex items-center gap-2 text-arcane">
+              <Icon name="flask" size={15} />
+              {t('catalyst.rate', { item: itemName(node.catalyst.item), rate: t.rate(node.catalyst.rate) })}
             </li>
           )}
           {node.fertilizer && (
@@ -157,6 +166,8 @@ function RecipeInspector({
       )}
       {out && <RecipeChoice data={data} item={out.item} current={recipe} onSelect={onSelect} />}
       <NodeOverrides data={data} recipe={recipe} building={building} />
+      <CatalystSelect data={data} recipe={recipe} />
+      <MachineCap recipe={recipe} />
       {out && (
         <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-line p-3 hover:border-white/25">
           <input
@@ -184,6 +195,9 @@ function EndpointInspector({ data, id, result, onClose }: { data: GameData; id: 
   const title = item ? name(item.nameKey) : ep.item;
   const perMin = result.edges.filter((e) => e.from === id).reduce((a, e) => a + e.perMin, 0);
   const imported = plan.imports.includes(ep.item);
+  const factories = useFactoryStore((st) => st.factories);
+  const activeId = useFactoryStore((st) => st.activeId);
+  const suppliers = suppliersOf(factories, activeId, ep.item);
 
   return (
     <div className="flex flex-col gap-4">
@@ -192,6 +206,9 @@ function EndpointInspector({ data, id, result, onClose }: { data: GameData; id: 
         {t.rate(perMin)}
       </GlowBadge>
       <p className="text-sm text-muted">{t(imported ? 'inspector.importNode' : 'inspector.rawNode')}</p>
+      {imported && suppliers.length > 0 && (
+        <p className="text-sm text-verdant">{t('network.comesFrom', { list: suppliers.map((f) => f.name).join(', ') })}</p>
+      )}
       {imported && (
         <Button variant="primary" onClick={() => useFactoryStore.getState().toggleImport(ep.item)}>
           {t('inspector.produceHere')}

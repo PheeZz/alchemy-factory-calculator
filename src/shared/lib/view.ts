@@ -1,9 +1,12 @@
 import { create } from 'zustand';
 
-export type AppView = 'calculator' | 'fuel';
+export const APP_VIEWS = ['calculator', 'fuel', 'profit', 'tech', 'network'] as const;
+export type AppView = (typeof APP_VIEWS)[number];
 
-const fromUrl = (): AppView =>
-  typeof location !== 'undefined' && new URLSearchParams(location.search).get('view') === 'fuel' ? 'fuel' : 'calculator';
+const fromUrl = (): AppView => {
+  const v = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('view') : null;
+  return (APP_VIEWS as readonly string[]).includes(v ?? '') ? (v as AppView) : 'calculator';
+};
 
 /**
  * Current screen, mirrored in `?view=` so a reload keeps it. The query string, not the hash:

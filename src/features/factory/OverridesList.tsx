@@ -36,6 +36,16 @@ export function OverridesList({ data }: { data: GameData }) {
       }),
       reset: () => s.setHeaterFor(recipe, null),
     })),
+    ...Object.entries(plan.catalystFor ?? {}).map(([recipe, item]) => ({
+      key: `c:${recipe}`,
+      text: t('overrides.catalyst', { recipe: name(data.recipes[recipe]?.nameKey ?? recipe), item: itemName(item) }),
+      reset: () => s.setCatalystFor(recipe, null),
+    })),
+    ...Object.entries(plan.machineCaps ?? {}).map(([recipe, cap]) => ({
+      key: `m:${recipe}`,
+      text: t('overrides.cap', { recipe: name(data.recipes[recipe]?.nameKey ?? recipe), n: cap }),
+      reset: () => s.setMachineCap(recipe, null),
+    })),
   ];
   if (rows.length === 0) return null;
 

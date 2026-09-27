@@ -11,3 +11,4 @@ dist/
 tools/extractor/*.so
 .playwright-mcp/
 .vitest/
+.claude/

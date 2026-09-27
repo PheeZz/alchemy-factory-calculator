@@ -1,7 +1,7 @@
 import { useId, useMemo, type ReactNode } from 'react';
 import type { GameData } from '@/shared/data/types';
 import { itemUsage } from '@/entities/item-usage';
-import { Coins } from '@/features/summary/Coins';
+import { Coins } from '@/shared/ui/Coins';
 import { useNames, useT } from '@/shared/i18n';
 import { formatNumber } from '@/shared/lib/format';
 import { Button, IconButton } from '@/shared/ui/Button';

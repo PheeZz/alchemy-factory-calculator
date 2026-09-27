@@ -5,6 +5,7 @@ import { FactoryList } from '@/features/factory/FactoryList';
 import { FactorySettings } from '@/features/factory/FactorySettings';
 import { useActiveFactory, useFactoryStore } from '@/features/factory/store';
 import { useSolve } from '@/features/factory/useSolve';
+import { useSolvePlan } from '@/features/factory/useSolvePlan';
 import { NodeInspector } from '@/features/node-inspector/NodeInspector';
 import { SummaryContent } from '@/features/summary/SummaryContent';
 import { SummaryPanel } from '@/features/summary/SummaryPanel';
@@ -23,7 +24,8 @@ export function CalculatorPage({ data }: { data: GameData }) {
   const t = useT();
   const factory = useActiveFactory();
   const levels = useFactoryStore((s) => s.levels);
-  const { result, status, error } = useSolve(data, factory.plan, levels);
+  const solvePlan = useSolvePlan(data);
+  const { result, status, error } = useSolve(data, solvePlan, levels);
   // forItem survives the graph re-selecting the same node after a re-solve; a different node clears it.
   const [selection, setSelection] = useState<{ id: string | null; forItem?: string }>({ id: null });
   const selectedId = selection.id;

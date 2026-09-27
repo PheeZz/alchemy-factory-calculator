@@ -1,5 +1,6 @@
 import type { GameData } from '@/shared/data/types';
 import { heatersFor } from '@/entities/game';
+import { useLocks } from '@/features/tech/model/useLocks';
 import { useNames, useT } from '@/shared/i18n';
 import { ItemIcon } from '@/shared/ui/ItemIcon';
 import { Select } from '@/shared/ui/Select';
@@ -28,6 +29,7 @@ export function HeaterSelect({
   const t = useT();
   const name = useNames();
   const heaters = heatersFor(data, fuel);
+  const locks = useLocks(data);
   const shown = data.buildings[value || inheritedId || ''];
   const label = (bid: string | null) => (bid && data.buildings[bid] ? name(data.buildings[bid].nameKey) : '—');
   return (
@@ -35,11 +37,14 @@ export function HeaterSelect({
       <ItemIcon icon={shown?.icon ?? null} name={shown ? name(shown.nameKey) : '—'} seed={shown?.id ?? 'heater'} size={28} decorative />
       <Select id={id} className="min-w-0 flex-1" value={value ?? ''} onChange={(e) => onChange(e.target.value || null)}>
         <option value="">{inheritLabel(label(inheritedId))}</option>
-        {heaters.map((b) => (
-          <option key={b.id} value={b.id}>
-            {`${name(b.nameKey)} · ${t.plural('slots', b.heatSlots ?? 0)}`}
-          </option>
-        ))}
+        {heaters.map((b) => {
+          const lockedBy = locks.building(b.id);
+          return (
+            <option key={b.id} value={b.id}>
+              {`${lockedBy ? '🔒 ' : ''}${name(b.nameKey)} · ${t.plural('slots', b.heatSlots ?? 0)}${lockedBy ? ` — ${t('tech.lockedBy', { node: lockedBy })}` : ''}`}
+            </option>
+          );
+        })}
       </Select>
     </div>
   );

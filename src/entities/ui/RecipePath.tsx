@@ -4,8 +4,8 @@ import { mainOutput } from '@/entities/game';
 import { useNames, useT } from '@/shared/i18n';
 import { ItemIcon } from '@/shared/ui/ItemIcon';
 
-/** The chosen chain, fuel's own recipe first: "Кокс ← Угольный порошок ← …"; raw fuels say so. */
-export function FuelPath({ data, path }: { data: GameData; path: string[] }) {
+/** A chosen recipe chain, the product's own recipe first: "Кокс ← Угольный порошок ← …"; empty = raw. */
+export function RecipePath({ data, path }: { data: GameData; path: string[] }) {
   const t = useT();
   const name = useNames();
   if (path.length === 0) return <span className="text-xs text-faint">{t('tiers.raw')}</span>;

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Background,
   BackgroundVariant,
@@ -14,12 +14,15 @@ import {
 } from '@xyflow/react';
 import type { GameData } from '@/shared/data/types';
 import type { SolveResult } from '@/features/solver/types';
-import { GraphDataContext } from './context';
+import { GraphActionsContext, GraphDataContext } from './context';
 import { FlowEdge } from './edges/FlowEdge';
 import type { GraphNode } from './elements';
+import { GraphToolbar, type GraphMode } from './GraphToolbar';
+import { BuildingGroupNode } from './nodes/BuildingGroupNode';
 import { ImportNode, SurplusNode, TargetNode } from './nodes/EndpointNode';
 import { RecipeNode } from './nodes/RecipeNode';
-import { useGraphLayout } from './useGraphLayout';
+import { useGraphExport } from './useGraphExport';
+import { useGraphLayout, type GraphOptions } from './useGraphLayout';
 import { chainFocus } from './focus';
 import { openingViewport } from './viewport';
 
@@ -27,7 +30,7 @@ import { openingViewport } from './viewport';
 const FAR_ZOOM = 0.35;
 
 // Module-level so React Flow never sees new type maps (it would remount every node).
-const nodeTypes = { recipe: RecipeNode, import: ImportNode, target: TargetNode, surplus: SurplusNode };
+const nodeTypes = { recipe: RecipeNode, import: ImportNode, target: TargetNode, surplus: SurplusNode, building: BuildingGroupNode };
 const edgeTypes = { flow: FlowEdge };
 
 const MINIMAP_COLOR: Record<string, string> = {
@@ -35,7 +38,11 @@ const MINIMAP_COLOR: Record<string, string> = {
   import: '#4fe3f1',
   target: '#ff5fd2',
   surplus: '#ffb547',
+  building: 'rgb(181 116 255 / 0.12)',
 };
+
+// d3-sankey and the diagram only load when the player switches to it.
+const SankeyView = lazy(() => import('./sankey/SankeyView'));
 
 interface GraphViewProps {
   data: GameData;
@@ -44,12 +51,17 @@ interface GraphViewProps {
   onSelectNode: (id: string | null) => void;
 }
 
-function Graph({ data, result, selectedId, onSelectNode }: GraphViewProps) {
+function Graph({ data, result, selectedId, onSelectNode, options }: GraphViewProps & { options: GraphOptions }) {
   const wrapper = useRef<HTMLDivElement>(null);
-  const { graph, pending } = useGraphLayout(data, result, () => ({
-    width: wrapper.current?.clientWidth || 1024,
-    height: wrapper.current?.clientHeight || 600,
-  }));
+  const { graph, pending } = useGraphLayout(
+    data,
+    result,
+    () => ({
+      width: wrapper.current?.clientWidth || 1024,
+      height: wrapper.current?.clientHeight || 600,
+    }),
+    options,
+  );
   const [nodes, setNodes, onNodesChange] = useNodesState<GraphNode>([]);
   const { setViewport, getNodes, getNodesBounds } = useReactFlow();
 
@@ -91,7 +103,10 @@ function Graph({ data, result, selectedId, onSelectNode }: GraphViewProps) {
   const [hovered, setHovered] = useState<string | null>(null);
   const focus = useMemo(() => chainFocus(graph?.edges ?? [], hovered), [graph, hovered]);
   const shownNodes = useMemo(
-    () => (focus ? nodes.map((n) => ({ ...n, className: focus.nodes.has(n.id) ? undefined : 'is-dim' })) : nodes),
+    () =>
+      focus
+        ? nodes.map((n) => ({ ...n, className: focus.nodes.has(n.id) || n.type === 'building' ? undefined : 'is-dim' }))
+        : nodes,
     [nodes, focus],
   );
   const shownEdges = useMemo(
@@ -141,10 +156,56 @@ function Graph({ data, result, selectedId, onSelectNode }: GraphViewProps) {
   );
 }
 
+/** Graph or flow diagram of one result, with the view toolbar; view options survive switching modes. */
+function GraphPanel(props: GraphViewProps) {
+  const [mode, setMode] = useState<GraphMode>('graph');
+  const [grouped, setGrouped] = useState(false);
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set());
+  const stage = useRef<HTMLDivElement>(null);
+  const sankey = useRef<SVGSVGElement>(null);
+  const { exportImage, exporting } = useGraphExport(mode, stage, sankey);
+
+  const actions = useMemo(
+    () => ({
+      toggleBranch: (id: string) =>
+        setCollapsed((prev) => {
+          const next = new Set(prev);
+          if (!next.delete(id)) next.add(id);
+          return next;
+        }),
+    }),
+    [],
+  );
+
+  return (
+    <div ref={stage} className="absolute inset-0">
+      {mode === 'graph' ? (
+        <GraphActionsContext.Provider value={actions}>
+          <Graph {...props} options={{ collapsed, grouped }} />
+        </GraphActionsContext.Provider>
+      ) : (
+        props.result && (
+          <Suspense fallback={<div className="shimmer" aria-hidden="true" />}>
+            <SankeyView data={props.data} result={props.result} svgRef={sankey} />
+          </Suspense>
+        )
+      )}
+      <GraphToolbar
+        mode={mode}
+        onMode={setMode}
+        grouped={grouped}
+        onGrouped={setGrouped}
+        onExport={(f) => void exportImage(f)}
+        exporting={exporting}
+      />
+    </div>
+  );
+}
+
 export function GraphView(props: GraphViewProps) {
   return (
     <ReactFlowProvider>
-      <Graph {...props} />
+      <GraphPanel {...props} />
     </ReactFlowProvider>
   );
 }

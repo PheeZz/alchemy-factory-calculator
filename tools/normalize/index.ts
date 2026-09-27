@@ -9,6 +9,7 @@ import { loadRaw, ROOT, type RawText } from './load';
 import { buildLocales, disambiguate } from './locale';
 import { normalizeRecipe, nurseryRecipe, paradoxRecipe, steamBoilerRecipes } from './recipes';
 import { writeReport } from './report';
+import { saleBonuses } from './sales';
 import { techTree } from './tech';
 import { latest, unlockIndex } from './unlocks';
 import { upgradeTracks } from './upgrades';
@@ -131,6 +132,7 @@ async function main() {
     upgrades,
     constants: { baseBeltSpeed: raw.attributes.ConveyerSpeed!.BaseValue },
     catalysts: CATALYSTS.filter((c) => items[c.item]),
+    saleBonuses: saleBonuses(raw.licenses, raw.improvements, raw.attributes),
   };
 
   const texts: RawText[] = [
@@ -138,6 +140,7 @@ async function main() {
     ...Object.keys(buildings).map((id) => raw.buildings[id]!.DisplayName),
     ...Object.values(raw.improvements).map((i) => i.DisplayName).filter((t) => upgrades.some((u) => u.nameKey === t.Key)),
     ...techBuildings.filter((id) => !buildings[id]).map((id) => raw.buildings[id]!.DisplayName),
+    ...Object.values(raw.licenses).map((l) => l.LicenseText),
   ];
   const { locales, missing } = buildLocales(texts, raw, ['ru', 'en']);
   // same display text on different items (Sand2…Sand7 "Refined Sand") → derived numbered keys

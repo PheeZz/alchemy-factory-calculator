@@ -2,16 +2,16 @@ import { forwardRef, type ReactNode } from 'react';
 import { motion } from 'motion/react';
 import type { GameData } from '@/shared/data/types';
 import type { FuelVariant } from '@/features/solver';
-import { Coins } from '@/features/summary/Coins';
+import { Coins } from '@/shared/ui/Coins';
 import { useNames, useT } from '@/shared/i18n';
 import { cx } from '@/shared/lib/cx';
 import { formatNumber } from '@/shared/lib/format';
 import { Button } from '@/shared/ui/Button';
 import { ItemIcon } from '@/shared/ui/ItemIcon';
 import type { Tier, TierMetric } from '../lib/tiers';
-import { FuelPath } from './FuelPath';
-import { TierBadge } from './TierBadge';
-import { TIER_STYLE } from './tierStyle';
+import { RecipePath } from '@/entities/ui/RecipePath';
+import { TierBadge } from '@/shared/ui/TierBadge';
+import { TIER_STYLE } from '@/shared/ui/tierStyle';
 
 /** Desktop columns; on phones the same cells stack into a card (labels become visible). */
 export const ROW_GRID =
@@ -58,7 +58,7 @@ export const VariantRow = forwardRef<
             <div className="line-clamp-2 text-sm leading-snug font-semibold text-ink" title={fuelName}>
               {fuelName}
             </div>
-            <FuelPath data={data} path={v.path} />
+            <RecipePath data={data} path={v.path} />
           </div>
         </div>
       </div>
