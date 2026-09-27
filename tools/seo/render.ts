@@ -19,6 +19,7 @@ const esc = (s: string) =>
 const pageUrl = (ctx: SeoContext, lang: SeoLang) => (lang === 'ru' ? ctx.siteUrl : `${ctx.siteUrl}en/`);
 const pagePath = (ctx: SeoContext, lang: SeoLang) => (lang === 'ru' ? ctx.base : `${ctx.base}en/`);
 const other = (lang: SeoLang): SeoLang => (lang === 'ru' ? 'en' : 'ru');
+// The root has no language of its own (a saved EN choice wins there), so the way back to RU says it.
 export const versionLine = (ctx: SeoContext, lang: SeoLang) =>
   copy[lang].version.replace('{version}', ctx.version).replace('{build}', ctx.build);
 
@@ -96,7 +97,8 @@ export function headTags(ctx: SeoContext, lang: SeoLang): string {
 const PRERENDER_CSS =
   '.pre{box-sizing:border-box;max-width:760px;margin:0 auto;padding:40px 20px 56px;color:#ece9fb;font:16px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif}' +
   '.pre header{display:flex;align-items:center;gap:14px}.pre h1{margin:0;font-size:30px;line-height:1.2}' +
-  '.pre h2{margin:28px 0 8px;font-size:19px;color:#b574ff}.pre p,.pre li{color:#c9c5e6}.pre ul,.pre ol{padding-left:22px}' +
+  '.pre h1,.pre h2{font-weight:600}.pre h2{margin:28px 0 8px;font-size:19px;color:#b574ff}.pre p{margin:12px 0}.pre p,.pre li{color:#c9c5e6}' +
+  '.pre ul,.pre ol{padding-left:22px;list-style:disc}.pre ol{list-style:decimal}.pre li{margin:4px 0}' +
   '.pre a{color:#4fe3f1}.pre .ver{margin-top:28px;font-size:13px;color:#7d78a3}' +
   '.pre nav ul{display:flex;flex-wrap:wrap;gap:8px 18px;list-style:none;padding:0}';
 
@@ -116,7 +118,7 @@ export function prerenderedBody(ctx: SeoContext, lang: SeoLang): string {
       <ul>${li(c.features)}</ul>
       <h2>${esc(c.howtoTitle)}</h2>
       <ol>${li(c.howto)}</ol>
-      <nav aria-label="${esc(c.sectionsTitle)}"><h2>${esc(c.sectionsTitle)}</h2><ul>${sections}<li><a href="${pagePath(ctx, other(lang))}" hreflang="${other(lang)}">${esc(c.otherLang)}</a></li></ul></nav>
+      <nav aria-label="${esc(c.sectionsTitle)}"><h2>${esc(c.sectionsTitle)}</h2><ul>${sections}<li><a href="${pagePath(ctx, other(lang))}${lang === 'en' ? '?lang=ru' : ''}" hreflang="${other(lang)}">${esc(c.otherLang)}</a></li></ul></nav>
       <p class="ver">${esc(versionLine(ctx, lang))}</p>
     </main>`;
 }
@@ -138,6 +140,7 @@ export function notFoundPage(ctx: SeoContext): string {
     <meta name="robots" content="noindex" />
     <meta name="color-scheme" content="dark" />
     <meta name="theme-color" content="${THEME_COLOR}" />
+    <link rel="icon" href="${ctx.base}favicon/icon-192.png" />
     <title>404 — Alchemy Factory</title>
     <style>
       body{margin:0;min-height:100vh;display:grid;place-items:center;background:${THEME_COLOR} radial-gradient(120% 90% at 50% 0%,rgb(58 34 120/.35),transparent 60%);color:#ece9fb;font:16px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif}
