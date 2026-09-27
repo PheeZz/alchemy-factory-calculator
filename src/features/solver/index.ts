@@ -16,5 +16,6 @@ export { buildList, type BuildListEntry } from './build-list';
 export { comparePlans, type Delta, type PlanDiff } from './compare';
 export { byproductOptions, type ByproductConsumer, type ByproductOption, type ByproductOptions } from './byproducts';
 export { footprintOf } from './postprocess';
+export { withCatalyst } from './model';
 export { defaultHeater } from './heaters';
 export { SolverError } from './types';

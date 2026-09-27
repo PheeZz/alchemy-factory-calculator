@@ -80,7 +80,7 @@ function RecipeInspector({
   const out = produced ?? mainOutput(recipe);
   const outItem = out ? data.items[out.item] : undefined;
   const outName = outItem ? name(outItem.nameKey) : recipeId;
-  const rates = node && recipeRates(recipe, node, upgradeValue(data, 'alchemySkill', levels.alchemySkill));
+  const rates = node && recipeRates(data, recipe, node, upgradeValue(data, 'alchemySkill', levels.alchemySkill));
   const itemName = (id: string) => name(data.items[id]?.nameKey ?? id);
   const buildingName = (id: string) => name(data.buildings[id]?.nameKey ?? id);
 
