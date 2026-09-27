@@ -1,9 +1,10 @@
 // ru is the reference dictionary: en must provide exactly the same keys (enforced by the Dict type).
 export const ru = {
-  'app.title': 'Калькулятор Alchemy Factory',
+  'app.title': 'Alchemy Factory калькулятор — цепочки и рецепты',
   'brand.title': 'Alchemy Factory',
   'brand.subtitle': 'калькулятор цепочек',
 
+  'game.version': 'Данные игры: v{version} (build {build})',
   'header.factory': 'Текущий завод',
   'header.lang': 'Язык интерфейса',
   'header.share': 'Поделиться ссылкой на завод',

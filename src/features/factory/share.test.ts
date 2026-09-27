@@ -1,3 +1,4 @@
+import { useLangStore } from '@/shared/i18n';
 import { decodeShare, encodeShare, importShareHash, shareUrl } from './share';
 import { emptyPlan, useFactoryStore } from './store';
 
@@ -54,10 +55,11 @@ test('heater fields survive a share round-trip; plans from before heaters still 
   expect(decodeShare(encodeShare('b', { name: 'old', plan: legacyPlan })).ok).toBe(true);
 });
 
-test('share links keep the page path but not the ?view= switch', () => {
+test('share links keep the page path and the language but not the ?view= switch', () => {
   history.replaceState(null, '', '/alchemy-factory-calculator/?view=fuel');
+  useLangStore.setState({ lang: 'ru' });
   const url = new URL(shareUrl('b', factory));
   expect(url.pathname).toBe('/alchemy-factory-calculator/');
-  expect(url.search).toBe('');
+  expect(url.search).toBe('?lang=ru');
   expect(decodeShare(url.hash)).toMatchObject({ ok: true });
 });

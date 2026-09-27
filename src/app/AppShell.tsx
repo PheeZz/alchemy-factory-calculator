@@ -43,7 +43,7 @@ export function AppShell({ data, locale }: { data: GameData; locale: GameLocale 
   return (
     <GameLocaleProvider locale={locale}>
       <div className="flex h-dvh flex-col">
-        <Header buildId={data.build.id} />
+        <Header build={data.build} />
         {view === 'fuel' ? (
           <FuelTiersPage data={data} />
         ) : view === 'profit' ? (

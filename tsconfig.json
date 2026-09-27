@@ -18,5 +18,5 @@
     "types": ["vite/client", "node", "vitest/globals", "@testing-library/jest-dom"],
     "paths": { "@/*": ["./src/*"] }
   },
-  "include": ["src", "tools/normalize", "vite.config.ts"]
+  "include": ["src", "tools/normalize", "tools/seo", "tools/og", "vite.config.ts"]
 }
