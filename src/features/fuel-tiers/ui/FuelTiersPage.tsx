@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { LayoutGroup } from 'motion/react';
 import type { GameData } from '@/shared/data/types';
+import { sanitizeUnlocked } from '@/features/factory/stale';
 import { useActiveFactory, useFactoryStore } from '@/features/factory/store';
 import { useNames, useT } from '@/shared/i18n';
 import { cx } from '@/shared/lib/cx';
@@ -10,7 +11,7 @@ import { groupByTier, variantKey } from '../lib/tiers';
 import { applyVariant } from '../model/applyVariant';
 import { useFuelVariants } from '../model/useFuelVariants';
 import { useTierControls } from '../model/useTierControls';
-import { TierBadge } from './TierBadge';
+import { TierBadge } from '@/shared/ui/TierBadge';
 import { TierControls } from './TierControls';
 import { ROW_GRID, VariantRow } from './VariantRow';
 
@@ -19,14 +20,16 @@ export function FuelTiersPage({ data }: { data: GameData }) {
   const name = useNames();
   const factory = useActiveFactory();
   const levels = useFactoryStore((s) => s.levels);
+  const unlocked = useFactoryStore((s) => s.unlocked);
   const { metric, heating } = useTierControls();
   const factoryFuel = factory.plan.fuel;
   const state = useFuelVariants(data, levels, {
     fertilizer: factory.plan.fertilizer,
     heating: heating === 'factory' && factoryFuel ? factoryFuel : 'self',
     heater: factory.plan.heater ?? null,
+    unlocked: sanitizeUnlocked(data, unlocked),
   });
-  const groups = state.status === 'ready' ? groupByTier(state.variants, metric) : [];
+  const groups = state.status === 'ready' ? groupByTier(state.data, metric) : [];
 
   // Arriving from the palette or an item card: bring that fuel's best row into view and flash it once.
   const highlight = useTierControls((s) => s.highlight);

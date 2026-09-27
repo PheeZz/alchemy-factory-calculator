@@ -8,6 +8,7 @@ import { Select } from '@/shared/ui/Select';
 import { chooseFuel } from '@/features/factory/fuelActions';
 import { FuelOptions } from '@/features/factory/FuelOptions';
 import { HeaterSelect } from '@/features/factory/HeaterSelect';
+import { useLocks } from '@/features/tech/model/useLocks';
 import { defaultHeater } from '@/features/solver';
 import { isSteamLike } from '@/features/factory/steam';
 
@@ -29,6 +30,7 @@ export function NodeOverrides({ data, recipe, building }: { data: GameData; reci
   const name = useNames();
   const plan = useActivePlan();
   const s = useFactoryStore.getState();
+  const locks = useLocks(data);
   const itemName = (id: string | null) => (id ? name(data.items[id]?.nameKey ?? id) : null);
   const factoryDefault = (id: string | null) =>
     id ? t('inspector.factoryDefault', { name: itemName(id)! }) : t('inspector.factoryDefaultNone');
@@ -49,9 +51,12 @@ export function NodeOverrides({ data, recipe, building }: { data: GameData; reci
             <Select id={id} value={building?.id ?? ''} onChange={(e) => s.setBuilding(recipe.id, e.target.value)}>
               {recipe.buildings.map((b) => {
                 const def = data.buildings[b];
+                const lockedBy = locks.building(b);
                 return (
                   <option key={b} value={b}>
+                    {lockedBy ? '🔒 ' : ''}
                     {t('inspector.speed', { name: name(def?.nameKey ?? b), speed: formatNumber(t.lang, def?.speedMult ?? 1) })}
+                    {lockedBy ? ` — ${t('tech.lockedBy', { node: lockedBy })}` : ''}
                   </option>
                 );
               })}

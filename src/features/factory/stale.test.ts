@@ -67,3 +67,20 @@ test('heater choices: unknown heater buildings and heaterFor entries are dropped
   expect(clean.heaterFor).toEqual({ IronIngot: 'Kiln' });
   expect(unknown).toEqual(['GoneHeater', 'GoneRecipe']);
 });
+
+test('catalyst picks, machine caps and learned tech drop ids the build does not know', async () => {
+  const { sanitizeUnlocked } = await import('./stale');
+  const plan = {
+    ...emptyPlan(),
+    catalystFor: { IronIngot: 'Gone', GoneRecipe: 'Salt', Elixir: 'Salt' },
+    machineCaps: { IronIngot: 3, GoneRecipe: 1 },
+  };
+  const { plan: clean } = sanitizePlan(demoGameData, plan);
+  expect(clean.catalystFor).toEqual({ Elixir: 'Salt' });
+  expect(clean.machineCaps).toEqual({ IronIngot: 3 });
+
+  const data = { ...demoGameData, tech: [{ id: 'Level1', nameKey: null, icon: null, cost: [], costMoney: 0, researchPoints: 0, requires: [], unlocks: { recipes: [], buildings: [], items: [] }, stage: 0 }] };
+  expect(sanitizeUnlocked(data, ['Level1', 'Gone'])).toEqual(['Level1']);
+  expect(sanitizeUnlocked(data, null)).toBeNull();
+  expect(sanitizeUnlocked(demoGameData, ['Level1'])).toBeNull();
+});

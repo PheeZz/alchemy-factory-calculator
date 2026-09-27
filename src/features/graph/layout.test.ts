@@ -3,6 +3,7 @@ import { demoResult } from './fixtures/demo-result';
 import { flowDurationSec, labelWidth, toElements } from './elements';
 import { layoutForView, layoutGraph } from './layout';
 import { boundsOf } from './viewport';
+import { groupByBuilding } from './group';
 
 const graph = () => toElements(demoGameData, demoResult);
 
@@ -89,4 +90,26 @@ test('a long chain is wrapped into rows only when that makes it fit the view', a
   expect(boundsOf(rows.nodes).width).toBeLessThan(boundsOf((await layoutGraph(nodes, edges, labelWidth)).nodes).width);
   // Phone: nothing fits, keep the flat layout (target-side view takes over).
   expect((await layoutForView(nodes, edges, labelWidth, { width: 200, height: 200 })).wrapped).toBe(false);
+});
+
+test('grouped by building: shared machines sit inside one ELK-sized frame, routes stay in root coordinates', async () => {
+  // Two nodes on the same building (Kiln) so a group forms; unique buildings stay ungrouped.
+  const result = { ...demoResult, nodes: demoResult.nodes.map((n) => (n.id === 'n:IronIngot' ? { ...n, building: 'Kiln' } : n)) };
+  const { nodes, edges } = toElements(demoGameData, result);
+  const { nodes: laid, routes } = await layoutGraph(groupByBuilding(nodes), edges, labelWidth);
+  const groups = laid.filter((n) => n.type === 'building');
+  expect(groups.map((g) => g.id)).toEqual(['group:Kiln']);
+  const g = groups[0]!;
+  const members = laid.filter((n) => n.parentId === g.id);
+  expect(members.map((n) => n.id).sort()).toEqual(['n:Charcoal', 'n:IronIngot']);
+  for (const m of members) {
+    expect(m.position.x).toBeGreaterThanOrEqual(0);
+    expect(m.position.x + m.width!).toBeLessThanOrEqual(g.width!);
+    expect(m.position.y + m.height!).toBeLessThanOrEqual(g.height!);
+  }
+  // An edge into a grouped node ends on that node's absolute left side.
+  const into = edges.find((e) => e.target === 'n:IronIngot')!;
+  const end = routes.get(into.id)!.points.at(-1)!;
+  const iron = members.find((n) => n.id === 'n:IronIngot')!;
+  expect(end.x).toBeCloseTo(g.position.x + iron.position.x, 0);
 });

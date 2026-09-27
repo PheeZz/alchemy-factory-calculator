@@ -1,7 +1,8 @@
 import type { Edge, Node } from '@xyflow/react';
-import type { GameData, ItemId } from '@/shared/data/types';
+import type { BuildingId, GameData, ItemId } from '@/shared/data/types';
 import type { SolveEdge, SolveNode, SolveResult } from '@/features/solver/types';
 import { formatRate } from '@/shared/lib/format';
+import type { CollapseSummary } from './collapse';
 import type { EdgeRoute } from './layout';
 
 export type EndpointKind = 'import' | 'target' | 'surplus';
@@ -9,13 +10,17 @@ export type FlowKind = 'item' | 'liquid' | 'fuel' | 'fertilizer';
 
 /** Heat/nutrient deliveries shown as a chip on the producer instead of routed edges. */
 export type Feed = { item: ItemId; kind: 'fuel' | 'fertilizer'; perMin: number; consumers: number };
-export type RecipeNodeData = { node: SolveNode; loops: SolveEdge[]; feeds: Feed[] };
+/** `hidden`: this node is a folded branch; `collapsible`: it has an upstream branch it can fold. */
+export type Branch = { hidden?: CollapseSummary; collapsible: boolean };
+export type RecipeNodeData = { node: SolveNode; loops: SolveEdge[]; feeds: Feed[]; branch?: Branch };
+export type BuildingGroupData = { building: BuildingId; count: number };
 export type ItemNodeData = { item: ItemId; perMin: number; raw: boolean };
 export type FlowEdgeData = { edge: SolveEdge; kind: FlowKind; durationSec: number; route?: EdgeRoute };
 
 export type RecipeFlowNode = Node<RecipeNodeData, 'recipe'>;
 export type ItemFlowNode = Node<ItemNodeData, EndpointKind>;
-export type GraphNode = RecipeFlowNode | ItemFlowNode;
+export type BuildingGroupNode = Node<BuildingGroupData, 'building'>;
+export type GraphNode = RecipeFlowNode | ItemFlowNode | BuildingGroupNode;
 export type GraphEdge = Edge<FlowEdgeData, 'flow'>;
 
 export const NODE_SIZE = {
@@ -43,7 +48,7 @@ export function flowDurationSec(perMin: number) {
   return Math.min(6, Math.max(0.8, 6 - 1.6 * Math.log10(1 + perMin)));
 }
 
-function flowKind(data: GameData, edge: SolveEdge, consumer: SolveNode | undefined): FlowKind {
+export function flowKind(data: GameData, edge: SolveEdge, consumer: SolveNode | undefined): FlowKind {
   if (consumer?.fuel?.item === edge.item) return 'fuel';
   if (consumer?.fertilizer?.item === edge.item) return 'fertilizer';
   return data.items[edge.item]?.liquid ? 'liquid' : 'item';

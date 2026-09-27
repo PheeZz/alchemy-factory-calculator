@@ -31,6 +31,8 @@ export function sanitizePlan(data: GameData, plan: FactoryPlan): { plan: Factory
     fertilizerFor: pickKeys(plan.fertilizerFor, (r, i) => recipe(r) && item(i)),
     heater: plan.heater && building(plan.heater) ? plan.heater : null,
     heaterFor: pickKeys(plan.heaterFor ?? {}, (r, b) => recipe(r) && building(b)),
+    catalystFor: pickKeys(plan.catalystFor ?? {}, (r, i) => recipe(r) && item(i)),
+    machineCaps: pickKeys(plan.machineCaps ?? {}, (r) => recipe(r)),
   };
   return { plan: clean, unknown: [...unknown].sort() };
 }
@@ -40,4 +42,11 @@ export function clampLevels(data: GameData, levels: UpgradeLevels): UpgradeLevel
   const out = { ...levels };
   for (const t of data.upgrades) out[t.id] = Math.max(0, Math.min(t.maxLevel, Math.round(levels[t.id] ?? 0)));
   return out;
+}
+
+/** Learned tech ids this build still has; null (everything open) passes through. */
+export function sanitizeUnlocked(data: GameData, unlocked: string[] | null): string[] | null {
+  if (unlocked === null || !data.tech) return null;
+  const known = new Set(data.tech.map((n) => n.id));
+  return unlocked.filter((id) => known.has(id));
 }

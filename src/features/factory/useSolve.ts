@@ -8,6 +8,8 @@ import { clampLevels, sanitizePlan } from './stale';
 export interface SolveErrorInfo {
   code: SolverErrorCode;
   item?: string;
+  /** Tech nodes to learn when the plan is unreachable only because of research. */
+  requiredTech?: string[];
 }
 
 export interface SolveState {
@@ -22,7 +24,7 @@ const hasWork = (plan: FactoryPlan) =>
   plan.mode === 'targets' ? plan.targets.some((t) => t.rate > 0) : plan.maximize !== null;
 
 export const toErrorInfo = (e: unknown): SolveErrorInfo =>
-  e instanceof SolverError ? { code: e.code, item: e.item } : { code: 'internal' };
+  e instanceof SolverError ? { code: e.code, item: e.item, requiredTech: e.requiredTech } : { code: 'internal' };
 
 /** Debounced solve of the active plan; answers to superseded requests are dropped by sequence number. */
 export function useSolve(data: GameData, plan: FactoryPlan, levels: UpgradeLevels): SolveState {

@@ -6,6 +6,7 @@ import { formatNumber } from '@/shared/lib/format';
 import { IconButton } from '@/shared/ui/Button';
 import { NumberFlip } from '@/shared/ui/NumberFlip';
 import { Panel } from '@/shared/ui/Panel';
+import { UpgradeAdvice } from './UpgradeAdvice';
 
 function TrackRow({ track, level, onLevel }: { track: UpgradeTrack; level: number; onLevel: (l: number) => void }) {
   const t = useT();
@@ -63,6 +64,7 @@ export function UpgradesPanel({ data }: { data: GameData }) {
           <TrackRow key={track.id} track={track} level={levels[track.id]} onLevel={(l) => setLevels({ [track.id]: l })} />
         ))}
       </ul>
+      <UpgradeAdvice data={data} />
     </Panel>
   );
 }

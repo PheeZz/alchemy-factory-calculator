@@ -9,6 +9,7 @@ export function ItemRateList({ data, title, rates }: { data: GameData; title: st
   return (
     <div>
       <h3 className="mb-1.5 text-xs font-medium text-faint">{title}</h3>
+      {rates.length === 0 && <p className="text-sm text-faint">{t('summary.none')}</p>}
       <ul className="flex flex-col gap-1">
         {rates.map((r) => {
           const item = data.items[r.item];

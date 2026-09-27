@@ -30,7 +30,10 @@ export function isPlan(v: unknown): v is FactoryPlan {
     (v.optimize === null || v.optimize === 'raw' || v.optimize === 'machines' || v.optimize === 'money') &&
     // Optional: plans saved before heaters existed have neither field.
     (v.heater === undefined || isStrOrNull(v.heater)) &&
-    (v.heaterFor === undefined || isStrMap(v.heaterFor))
+    (v.heaterFor === undefined || isStrMap(v.heaterFor)) &&
+    (v.catalystFor === undefined || isStrMap(v.catalystFor)) &&
+    (v.machineCaps === undefined ||
+      (isObj(v.machineCaps) && Object.values(v.machineCaps).every((n) => typeof n === 'number' && Number.isFinite(n) && n >= 0)))
   );
 }
 

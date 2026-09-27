@@ -161,6 +161,22 @@ export interface GameData {
   constants: { baseBeltSpeed: number };
   tech?: TechNode[];
   catalysts?: Catalyst[];
+  saleBonuses?: SaleBonus[];
+}
+
+/**
+ * A shop licence line (DT_License → DT_Improvements). The game's sale multiplier is additive:
+ * 1 + Σ values[level] of the bonuses covering the item's sell type (store-wide one included).
+ */
+export interface SaleBonus {
+  /** The attribute it raises, e.g. 'GeneralGoodsProfit', 'StoreProfit'. */
+  id: string;
+  /** Licence name (tier 1). */
+  nameKey: string;
+  sellTypes: SellType[] | 'all';
+  maxLevel: number;
+  /** Added to the sale multiplier at licence tier 0..maxLevel (0 at tier 0): 0.8 = +80 %. */
+  values: number[];
 }
 
 /** nameKey → display string, one file per language. */
