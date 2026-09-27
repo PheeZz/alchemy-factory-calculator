@@ -5,6 +5,7 @@ import { isSteamLike } from '@/features/factory/steam';
 import { useActivePlan, useFactoryStore } from '@/features/factory/store';
 import type { SolveErrorInfo, SolveState } from '@/features/factory/useSolve';
 import { GraphView } from '@/features/graph/GraphView';
+import { RequiredTech } from '@/features/tech/ui/RequiredTech';
 import { useItemOptions } from '@/features/target-picker/useItemOptions';
 import { useNames, useT } from '@/shared/i18n';
 import { Button } from '@/shared/ui/Button';
@@ -20,7 +21,9 @@ function ErrorCard({ data, error, mode }: { data: GameData; error: SolveErrorInf
   const name = useNames();
   const item = error.item ? name(data.items[error.item]?.nameKey ?? error.item) : '';
   const steam = error.code === 'invalidInput' && isSteamLike(data.items[error.item ?? '']);
-  const message = steam
+  const message = error.requiredTech?.length
+    ? t('error.needsTech', { item })
+    : steam
     ? t('error.steamBoiler')
     : error.code === 'infeasible' && error.item
       ? t('error.infeasibleItem', { item })
@@ -34,15 +37,16 @@ function ErrorCard({ data, error, mode }: { data: GameData; error: SolveErrorInf
   const plan = useActivePlan();
   // A manual recipe/machine pick is the usual culprit, so undoing all of them is always offered.
   const hasOverrides =
-    Object.keys(plan.recipeFor).length + Object.keys(plan.buildingFor).length + Object.keys(plan.heaterFor ?? {}).length > 0;
+    [plan.recipeFor, plan.buildingFor, plan.heaterFor, plan.catalystFor, plan.machineCaps].some((m) => Object.keys(m ?? {}).length > 0);
 
   return (
-    <div role="alert" className="glass pointer-events-auto max-w-md rounded-panel border-danger/50 p-5">
+    <div role="alert" className="glass pointer-events-auto max-h-full max-w-md overflow-y-auto rounded-panel border-danger/50 p-5">
       <h2 className="flex items-center gap-2 font-display text-lg text-[#ffc2c7]">
         <Icon name="alert" className="text-danger" />
         {t('error.title')}
       </h2>
       <p className="mt-2 text-sm text-ink/90">{message}</p>
+      {error.requiredTech && error.requiredTech.length > 0 && <RequiredTech data={data} ids={error.requiredTech} />}
       <div className="mt-4 flex flex-wrap gap-2">
         {canFix && (
           <Button

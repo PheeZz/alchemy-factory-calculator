@@ -1,6 +1,8 @@
 import { useId, useMemo, useState } from 'react';
 import type { GameData, Recipe } from '@/shared/data/types';
 import { rankedRecipesFor } from '@/entities/game';
+import { useLocks } from '@/features/tech/model/useLocks';
+import { Icon } from '@/shared/ui/Icon';
 import { useActivePlan, useFactoryStore } from '@/features/factory/store';
 import { useNames, useT } from '@/shared/i18n';
 import { cx } from '@/shared/lib/cx';
@@ -51,6 +53,7 @@ export function RecipeChoice({
   const [expanded, setExpanded] = useState(false);
 
   const recipes = useMemo(() => rankedRecipesFor(data, item), [data, item]);
+  const locks = useLocks(data);
   const itemName = (id: string) => name(data.items[id]?.nameKey ?? id);
   // Generated recipes (e.g. Paradox → Mors) share the output's name, so inputs are what tells them apart.
   const title = (r: Recipe) =>
@@ -78,10 +81,13 @@ export function RecipeChoice({
       <div className="flex flex-col gap-2">
         {shown.map((r, i) => {
           const checked = r.id === chosen;
+          // Still selectable (a manual pick overrides research, like in game data), but visibly locked.
+          const lockedBy = locks.recipe(r.id);
           return (
             <label
               key={r.id}
               className={cx(
+                lockedBy && !checked && 'opacity-60',
                 'block cursor-pointer rounded-xl border p-3 transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-flow',
                 checked
                   ? 'border-arcane/70 bg-arcane/12 shadow-[0_0_22px_-10px_var(--color-arcane)]'
@@ -103,6 +109,12 @@ export function RecipeChoice({
                   {t('inspector.perBatch', { time: formatNumber(t.lang, r.timeSec, 1) })}
                 </span>
               </span>
+              {lockedBy && (
+                <span className="mb-1.5 flex items-center gap-1 text-[11px] text-ember">
+                  <Icon name="lock" size={12} />
+                  {t('tech.lockedBy', { node: lockedBy })}
+                </span>
+              )}
               <span className="flex items-center gap-2">
                 <StackIcons data={data} stacks={r.inputs} />
                 <span className="text-faint" aria-hidden="true">

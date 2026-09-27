@@ -1,5 +1,5 @@
 import { cx } from '@/shared/lib/cx';
-import type { Tier } from '../lib/tiers';
+import type { Tier } from '@/shared/lib/tiers';
 import { TIER_STYLE } from './tierStyle';
 
 export function TierBadge({ tier, size = 'md', label }: { tier: Tier | null; size?: 'md' | 'lg'; label: string }) {

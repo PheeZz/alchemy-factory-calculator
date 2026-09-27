@@ -4,7 +4,9 @@ import type { SolveResult } from '@/features/solver/types';
 import { useT } from '@/shared/i18n';
 import { formatNumber } from '@/shared/lib/format';
 import { CountUp } from '@/shared/ui/CountUp';
-import { Coins } from './Coins';
+import { Coins } from '@/shared/ui/Coins';
+import { BuildChecklist } from './BuildChecklist';
+import { ByproductOptions } from './ByproductOptions';
 import { itemRow, StackList, type SummaryRow } from './StackList';
 
 function Block({ title, children }: { title: string; children: ReactNode }) {
@@ -64,12 +66,28 @@ export function SummaryContent({ data, result }: { data: GameData; result: Solve
           <dd className="justify-self-end">
             <Coins copper={t.fromPerMin(totals.rawMoneyPerMin)} />
           </dd>
+          {totals.area && (
+            <>
+              <dt className="text-muted">{t('summary.area')}</dt>
+              <dd className="num justify-self-end text-right">
+                {t('summary.areaValue', { floor: formatNumber(t.lang, totals.area.floor, 0), cells: formatNumber(t.lang, totals.area.cells, 0) })}
+              </dd>
+            </>
+          )}
           <dt className="text-muted">{t('summary.heat')}</dt>
           <dd className="justify-self-end text-ember">
             <CountUp value={totals.heatPerSec} format={(n) => t('unit.heat', { value: formatNumber(t.lang, n, 1) })} />
           </dd>
         </dl>
         <StackList rows={buildCost} />
+      </Block>
+    </div>
+    <div className="mt-5 grid gap-x-8 gap-y-5 border-t border-line pt-4 @3xl:grid-cols-2">
+      <Block title={t('build.title')}>
+        <BuildChecklist data={data} result={result} />
+      </Block>
+      <Block title={t('byproduct.title')}>
+        <ByproductOptions data={data} result={result} />
       </Block>
     </div>
     </div>

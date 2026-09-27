@@ -5,7 +5,7 @@ import { cx } from '@/shared/lib/cx';
 import { formatNumber } from '@/shared/lib/format';
 import { Icon } from '@/shared/ui/Icon';
 import { CountUp } from '@/shared/ui/CountUp';
-import { Coins } from './Coins';
+import { Coins } from '@/shared/ui/Coins';
 import { SummaryContent } from './SummaryContent';
 
 /** Desktop bottom drawer on native <details>: the collapsed bar still shows the three headline totals. */

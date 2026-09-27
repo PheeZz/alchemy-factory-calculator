@@ -10,12 +10,19 @@ export interface Factory {
   id: string;
   name: string;
   plan: FactoryPlan;
+  /** Build checklist: buildings the player marked as already built. */
+  built?: BuildingId[];
 }
 
 interface FactoryData {
   factories: Factory[];
   activeId: string;
   levels: UpgradeLevels;
+  /**
+   * Learned tech nodes, a player profile like `levels` (research belongs to the save, not to one
+   * factory). null = everything open, the default.
+   */
+  unlocked: string[] | null;
 }
 
 interface FactoryActions {
@@ -54,6 +61,11 @@ interface FactoryActions {
   setLevels: (levels: Partial<UpgradeLevels>) => void;
   /** Drops manual recipe and machine choices of the active factory (the "undo" for an unsolvable pick). */
   clearOverrides: () => void;
+  setUnlocked: (unlocked: string[] | null) => void;
+  setCatalystFor: (recipe: RecipeId, catalyst: ItemId | null) => void;
+  /** Upper bound on machines for a recipe ("I have N of these"); null removes it. */
+  setMachineCap: (recipe: RecipeId, cap: number | null) => void;
+  toggleBuilt: (building: BuildingId) => void;
 }
 
 export type FactoryState = FactoryData &
@@ -113,7 +125,7 @@ function clampLevels(levels: Partial<UpgradeLevels>, max: UpgradeLevels | null):
 }
 
 // Starts empty: the first factory is created by init() once game data provides fuel/fertilizer defaults.
-const initialData = (): FactoryData => ({ factories: [], activeId: '', levels: zeroLevels() });
+const initialData = (): FactoryData => ({ factories: [], activeId: '', levels: zeroLevels(), unlocked: null });
 
 const isFactory = (f: unknown): f is Factory => isFactoryDraft(f) && typeof (f as Factory).id === 'string';
 
@@ -125,7 +137,8 @@ function readPersisted(v: unknown): FactoryData | null {
   if (factories.length === 0) return null;
   const levels = clampLevels(d.levels && typeof d.levels === 'object' ? d.levels : {}, null);
   const activeId = factories.some((f) => f.id === d.activeId) ? d.activeId! : factories[0]!.id;
-  return { factories, activeId, levels };
+  const unlocked = Array.isArray(d.unlocked) ? d.unlocked.filter((x): x is string => typeof x === 'string') : null;
+  return { factories, activeId, levels, unlocked };
 }
 
 function withKey<V>(rec: Record<string, V>, key: string, value: V | null): Record<string, V> {
@@ -222,13 +235,25 @@ export const useFactoryStore = create<FactoryState>()(
         setHeater: (heater) => patchPlan(() => ({ heater })),
         setHeaterFor: (recipe, building) => patchPlan((p) => ({ heaterFor: withKey(p.heaterFor ?? {}, recipe, building) })),
         setLevels: (levels) => set((s) => ({ levels: clampLevels({ ...s.levels, ...levels }, s.maxLevels) })),
-        clearOverrides: () => patchPlan(() => ({ recipeFor: {}, buildingFor: {}, heaterFor: {} })),
+        clearOverrides: () => patchPlan(() => ({ recipeFor: {}, buildingFor: {}, heaterFor: {}, catalystFor: {}, machineCaps: {} })),
+        setUnlocked: (unlocked) => set({ unlocked }),
+        setCatalystFor: (recipe, catalyst) => patchPlan((p) => ({ catalystFor: withKey(p.catalystFor ?? {}, recipe, catalyst) })),
+        setMachineCap: (recipe, cap) =>
+          patchPlan((p) => ({ machineCaps: withKey(p.machineCaps ?? {}, recipe, cap !== null && cap >= 0 ? cap : null) })),
+        toggleBuilt: (building) =>
+          set((s) => ({
+            factories: s.factories.map((f) => {
+              if (f.id !== s.activeId) return f;
+              const built = f.built ?? [];
+              return { ...f, built: built.includes(building) ? built.filter((b) => b !== building) : [...built, building] };
+            }),
+          })),
       };
     },
     {
       name: STORAGE_KEY,
       version: VERSION,
-      partialize: ({ factories, activeId, levels }): FactoryData => ({ factories, activeId, levels }),
+      partialize: ({ factories, activeId, levels, unlocked }): FactoryData => ({ factories, activeId, levels, unlocked }),
       // No older schema exists yet: any other version (incl. one written by a newer build) resets
       // to a clean state rather than feeding an unknown shape into the solver.
       migrate: (persisted, version) => (version === VERSION ? (readPersisted(persisted) ?? initialData()) : initialData()),
