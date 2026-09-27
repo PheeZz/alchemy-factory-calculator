@@ -63,6 +63,9 @@ export function CalculatorPage({ data }: { data: GameData }) {
           <FactoryList data={data} />
           {controls}
           <UpgradesPanel data={data} />
+          <p className="mt-auto px-1 pb-1 text-[11px] text-faint">
+            {t('game.version', { version: data.build.version, build: data.build.id })}
+          </p>
         </aside>
 
         <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">

@@ -1,10 +1,11 @@
 import type { Dict } from './index';
 
 export const en: Dict = {
-  'app.title': 'Alchemy Factory Calculator',
+  'app.title': 'Alchemy Factory Calculator — Production Chain Planner',
   'brand.title': 'Alchemy Factory',
   'brand.subtitle': 'chain calculator',
 
+  'game.version': 'Game data: v{version} (build {build})',
   'header.factory': 'Current factory',
   'header.lang': 'Interface language',
   'header.share': 'Share a link to this factory',
