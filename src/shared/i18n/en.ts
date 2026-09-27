@@ -1,7 +1,7 @@
 import type { Dict } from './index';
 
 export const en: Dict = {
-  'app.title': 'Alchemy Factory Calculator',
+  'app.title': 'Alchemy Factory Calculator — Production Chain Planner',
   'brand.title': 'Alchemy Factory',
   'brand.subtitle': 'chain calculator',
 

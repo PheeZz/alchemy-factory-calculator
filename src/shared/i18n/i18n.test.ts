@@ -7,7 +7,7 @@ test('en covers exactly the ru keys', () => {
 });
 
 test('translate substitutes params', () => {
-  expect(translate('en', 'app.title')).toBe('Alchemy Factory Calculator');
+  expect(translate('en', 'app.title')).toBe('Alchemy Factory Calculator — Production Chain Planner');
 });
 
 test('rates render in the chosen unit through t.rate, inputs convert back to /min', async () => {
