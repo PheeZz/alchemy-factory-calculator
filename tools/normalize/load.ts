@@ -128,6 +128,13 @@ export interface RawPlantSeed {
   GrowthNum: number;
   SideGrowthNum: number;
 }
+export interface RawLicense {
+  LicenseType: string;
+  LicenseTier: number;
+  LicenseText: RawText;
+  /** Improvement row applied while the licence is held; 'None' for recipe-only licences. */
+  UnlockBuff: string;
+}
 export interface RawAttribute {
   BaseValue: number;
 }
@@ -146,6 +153,7 @@ export interface Raw {
   upgradePoints: Record<string, RawSkill>;
   workbench: Record<string, RawWorkbench>;
   improvements: Record<string, RawImprovement>;
+  licenses: Record<string, RawLicense>;
   plantSeeds: Record<string, RawPlantSeed>;
   attributes: Record<string, RawAttribute>;
   /** StringTable asset path → locres namespace. */
@@ -205,6 +213,7 @@ export function loadRaw(): Raw {
     upgradePoints: rows('DT_UpgradePoints'),
     workbench: rows('DT_Workbench'),
     improvements: rows('DT_Improvements'),
+    licenses: rows('DT_License'),
     plantSeeds: rows('DT_PlantSeedConfig'),
     attributes: rows('DT_Attributes'),
     stringTableNamespaces,

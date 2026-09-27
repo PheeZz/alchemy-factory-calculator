@@ -8,8 +8,10 @@ export interface ProfitVariant {
   recipeFor: Record<ItemId, RecipeId>;
   /** The item's recipe first, then the chosen upstream recipes. Empty = buy and resell. */
   path: RecipeId[];
-  /** Shop price per item (item.value), copper. */
+  /** Shop price per item: item.value × saleMultiplier, copper. */
   salePrice: number;
+  /** 1 + the licence bonuses covering the item's shop category (opts.saleLevels). */
+  saleMultiplier: number;
   /** Exact machines (heaters included) per 1 item/min. */
   machinesPerItem: number;
   /** Raw items bought per item. */
@@ -40,6 +42,22 @@ export interface ProfitVariantOptions {
   unlocked?: string[] | null;
   /** Paths per item (default 4). */
   maxVariantsPerItem?: number;
+  /** Licence tier per GameData.saleBonuses id (clamped to 0..maxLevel); absent → tier 0. */
+  saleLevels?: Record<string, number>;
+}
+
+/**
+ * The game adds the licence bonuses (GetProfitMultiBySellType: store% + category% − 1), so tiers
+ * of the store-wide and the category licence sum rather than multiply.
+ */
+export function saleMultiplier(data: GameData, item: Item, saleLevels: Record<string, number> = {}): number {
+  let bonus = 0;
+  for (const b of data.saleBonuses ?? []) {
+    if (!item.sellType || (b.sellTypes !== 'all' && !b.sellTypes.includes(item.sellType))) continue;
+    const level = Math.min(Math.max(Math.trunc(saleLevels[b.id] ?? 0), 0), b.maxLevel);
+    bonus += b.values[level] ?? 0;
+  }
+  return 1 + bonus;
 }
 
 /** Items/min each variant is solved for; per-item metrics divide it out (the model is linear). */
@@ -80,7 +98,9 @@ export async function rankProfitVariants(data: GameData, levels: UpgradeLevels, 
       const per = (qty: number) => qty / PROBE_RATE;
       const machinesPerItem = per(machineTotals(res).exact);
       const rawCostPerItem = per(res.totals.rawMoneyPerMin);
-      const marginPerItem = item.value - rawCostPerItem;
+      const multiplier = saleMultiplier(data, item, opts.saleLevels);
+      const salePrice = item.value * multiplier;
+      const marginPerItem = salePrice - rawCostPerItem;
       const fuel = new Map<ItemId, number>();
       for (const n of res.nodes) if (n.fuel) fuel.set(n.fuel.item, (fuel.get(n.fuel.item) ?? 0) + n.fuel.rate);
       const fuelPerItem = [...fuel].map(([f, qty]) => ({ item: f, qty: per(qty) }));
@@ -88,13 +108,14 @@ export async function rankProfitVariants(data: GameData, levels: UpgradeLevels, 
         item: item.id,
         recipeFor: choice.recipeFor,
         path: choice.path,
-        salePrice: item.value,
+        salePrice,
+        saleMultiplier: multiplier,
         machinesPerItem,
         rawPerItem: res.totals.raw.map((s) => ({ item: s.item, qty: per(s.qty) })),
         rawCostPerItem,
         marginPerItem,
-        valueMultiplier: rawCostPerItem > 0 ? item.value / rawCostPerItem : null,
-        salePerMachine: machinesPerItem > 0 ? item.value / machinesPerItem : null,
+        valueMultiplier: rawCostPerItem > 0 ? salePrice / rawCostPerItem : null,
+        salePerMachine: machinesPerItem > 0 ? salePrice / machinesPerItem : null,
         marginPerMachine: machinesPerItem > 0 ? marginPerItem / machinesPerItem : null,
         fuelPerItem,
         fuelValuePerItem: fuelPerItem.reduce((sum, s) => sum + s.qty * data.items[s.item]!.value, 0),

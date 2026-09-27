@@ -40,6 +40,28 @@ describe('rankProfitVariants', () => {
     expect(v[2]).toMatchObject({ path: [], machinesPerItem: 0, marginPerItem: -4, marginPerMachine: null });
   });
 
+  it('licence tiers raise the sale price additively (store-wide + category)', async () => {
+    const withBonuses: GameData = {
+      ...shop,
+      saleBonuses: [
+        { id: 'GeneralGoodsProfit', nameKey: 'g', sellTypes: ['groceries'], maxLevel: 2, values: [0, 0.1, 0.24] },
+        { id: 'StoreProfit', nameKey: 's', sellTypes: 'all', maxLevel: 1, values: [0, 0.1] },
+        { id: 'JewelProfit', nameKey: 'j', sellTypes: ['jewelry'], maxLevel: 1, values: [0, 0.5] },
+      ],
+    };
+    // Gear (groceries): 1 + 0.24 + 0.1 = 1.34 → 40 × 1.34 = 53.6, margin 53.6 − 15 = 38.6; the jewel line
+    // does not apply; a tier above max is clamped.
+    const v = await rankProfitVariants(withBonuses, level0, {
+      fuel: null,
+      fertilizer: null,
+      saleLevels: { GeneralGoodsProfit: 9, StoreProfit: 1, JewelProfit: 1 },
+    });
+    const gear = v.find((x) => x.item === 'Gear')!;
+    expect(gear.saleMultiplier).toBeCloseTo(1.34, 12);
+    expect(gear.salePrice).toBeCloseTo(53.6, 9);
+    expect(gear.marginPerItem).toBeCloseTo(38.6, 9);
+  });
+
   it('real data: every sellable item that can be made, well within the worker budget', async () => {
     const t0 = performance.now();
     const v = await rankProfitVariants(real, level0, { fuel: 'Coal', fertilizer: 'BasicFertilizer' });
