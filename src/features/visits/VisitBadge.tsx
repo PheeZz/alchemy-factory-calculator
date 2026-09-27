@@ -21,7 +21,8 @@ export function VisitBadge() {
     };
   }, []);
 
-  if (count === null) return null;
+  // A fresh counter reads 0 until GoatCounter's cached total (up to 4 h) refreshes; a "0 visitors" pill is worse than none.
+  if (!count) return null;
   return (
     <span
       title={t('visits.title')}
