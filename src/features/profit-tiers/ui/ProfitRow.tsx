@@ -67,6 +67,9 @@ export const ProfitRow = forwardRef<
       </Cell>
       <Cell label={t('profit.col.sale')}>
         <Coins copper={v.salePrice} />
+        {v.saleMultiplier > 1 && (
+          <div className="text-[11px] font-normal text-flow">{t('profit.saleBonus', { mult: formatNumber(t.lang, v.saleMultiplier, 2) })}</div>
+        )}
       </Cell>
       <Cell label={t('profit.col.multiplier')} active={metric === 'multiplier'}>
         {v.valueMultiplier === null ? <span className="text-faint">—</span> : `×${formatNumber(t.lang, v.valueMultiplier, 2)}`}

@@ -12,6 +12,7 @@ import { groupProfit, profitKey, type ProfitMetric } from '../lib/profit';
 import { applyProfit } from '../model/applyProfit';
 import { useProfitControls } from '../model/useProfitControls';
 import { useProfitVariants } from '../model/useProfitVariants';
+import { LicenceControls } from './LicenceControls';
 import { PROFIT_GRID, ProfitRow } from './ProfitRow';
 
 const METRICS: ProfitMetric[] = ['marginMachine', 'marginItem', 'multiplier'];
@@ -22,7 +23,7 @@ export function ProfitPage({ data }: { data: GameData }) {
   const factory = useActiveFactory();
   const levels = useFactoryStore((s) => s.levels);
   const unlocked = useFactoryStore((s) => s.unlocked);
-  const { metric, setMetric } = useProfitControls();
+  const { metric, setMetric, saleLevels } = useProfitControls();
   const plan = factory.plan;
   const state = useProfitVariants(data, levels, {
     fuel: plan.fuel,
@@ -30,6 +31,7 @@ export function ProfitPage({ data }: { data: GameData }) {
     fertilizer: plan.fertilizer,
     heater: plan.heater ?? null,
     unlocked: sanitizeUnlocked(data, unlocked),
+    saleLevels,
   });
   const groups = state.status === 'ready' ? groupProfit(state.data, metric) : [];
 
@@ -50,6 +52,7 @@ export function ProfitPage({ data }: { data: GameData }) {
           />
           <p className="text-xs text-muted lg:max-w-sm lg:pb-1.5">{t(`profit.hint.${metric}`)}</p>
         </div>
+        <LicenceControls bonuses={data.saleBonuses ?? []} />
 
         {state.status === 'loading' && (
           <div role="status" className="flex flex-col gap-2">
