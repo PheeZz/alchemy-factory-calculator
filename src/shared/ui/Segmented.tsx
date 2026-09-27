@@ -24,14 +24,13 @@ export function Segmented<V extends string>({
           <label
             key={o.value}
             className={cx(
-              'relative flex h-8 min-w-0 flex-1 cursor-pointer items-center justify-center rounded-lg px-3 text-[13px] font-medium whitespace-nowrap transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-flow',
+              'relative flex min-h-8 min-w-0 flex-1 cursor-pointer items-center justify-center rounded-lg px-3 py-1 text-center text-[13px] leading-tight font-medium transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-flow',
               o.value === value ? 'bg-arcane/22 text-ink' : 'text-muted hover:text-ink',
             )}
           >
             <input type="radio" name={name} value={o.value} checked={o.value === value} onChange={() => onChange(o.value)} className="sr-only" />
-            <span className="truncate" title={o.label}>
-              {o.label}
-            </span>
+            {/* Wraps, never truncates: at phone width "Прибыль на …" / "Прибыль за …" were indistinguishable. */}
+            <span>{o.label}</span>
           </label>
         ))}
       </div>

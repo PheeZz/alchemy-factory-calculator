@@ -40,6 +40,9 @@
     margin: 0;
     color: var(--color-ink);
     font-family: var(--font-sans);
+    /* Russian game names carry single words wider than a card column ("Чугуноплавильная"): hyphenate, else break. */
+    hyphens: auto;
+    overflow-wrap: break-word;
     background-color: var(--color-void);
     /* Vignette + faint grain: gives the void depth without competing with neon accents. */
     background-image:
