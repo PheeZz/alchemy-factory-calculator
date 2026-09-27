@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { MotionConfig } from 'motion/react';
-import { useLangStore } from '@/shared/i18n';
+import { translate, useLangStore } from '@/shared/i18n';
 import { ParticlesBackground } from '@/shared/ui/ParticlesBackground';
 import { ToastViewport } from '@/shared/ui/Toast';
 import { AppShell } from './AppShell';
@@ -15,6 +15,7 @@ export function App() {
   const game = useGameData(lang, bootstrap);
   useEffect(() => {
     document.documentElement.lang = lang;
+    document.title = translate(lang, 'app.title');
   }, [lang]);
 
   return (
