@@ -31,6 +31,7 @@ export function seo({ siteUrl }: { siteUrl: string }): Plugin {
         build: b.id,
         googleVerification: c.env.VITE_GOOGLE_SITE_VERIFICATION || undefined,
         yandexVerification: c.env.VITE_YANDEX_VERIFICATION || undefined,
+        goatcounter: (c.command === 'build' && c.env.VITE_GOATCOUNTER) || undefined,
       }));
     },
     transformIndexHtml: {

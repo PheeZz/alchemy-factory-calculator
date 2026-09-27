@@ -3,6 +3,7 @@ import type { SVGProps } from 'react';
 // ponytail: hand-picked stroke paths instead of an icon package; add a library when this set outgrows ~20.
 const PATHS = {
   plus: 'M12 5v14M5 12h14',
+  eye: 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
   minus: 'M5 12h14',
   close: 'M6 6l12 12M18 6L6 18',
   trash: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',

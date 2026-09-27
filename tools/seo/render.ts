@@ -9,6 +9,8 @@ export interface SeoContext {
   build: string;
   googleVerification?: string;
   yandexVerification?: string;
+  /** GoatCounter site URL; its count.js is emitted only for production builds. */
+  goatcounter?: string;
 }
 
 export const THEME_COLOR = '#090716';
@@ -86,6 +88,7 @@ export function headTags(ctx: SeoContext, lang: SeoLang): string {
     `<meta name="twitter:image:alt" content="${esc(c.ogAlt)}" />`,
     ctx.googleVerification && `<meta name="google-site-verification" content="${esc(ctx.googleVerification)}" />`,
     ctx.yandexVerification && `<meta name="yandex-verification" content="${esc(ctx.yandexVerification)}" />`,
+    ctx.goatcounter && `<script data-goatcounter="${esc(ctx.goatcounter)}/count" async src="https://gc.zgo.at/count.js"></script>`,
     `<script type="application/ld+json">${ld}</script>`,
     `<style>${PRERENDER_CSS}</style>`,
   ]
